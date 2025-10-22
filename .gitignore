@@ -1,27 +1,241 @@
+# LAN Chat Application - .gitignore
+# This file tells Git which files/folders to ignore
 
-###  Create .gitignore File
-Create a file named `.gitignore` in your project root:
-```
-# Ignore uploaded files
+# ==================================
+# User Uploaded Files
+# ==================================
+# Ignore all uploaded files except defaults
 uploads/profiles/*
 uploads/files/*
 uploads/images/*
 uploads/voice/*
+
+# But keep the default images
+!uploads/profiles/.gitkeep
 !uploads/profiles/default.png
+!uploads/files/.gitkeep
+!uploads/images/.gitkeep
 !uploads/images/default.png
+!uploads/images/default_group.png
+!uploads/voice/.gitkeep
 
-# Ignore system files
-.DS_Store
-Thumbs.db
+# Keep folder structure with .gitkeep files
+!uploads/.gitkeep
 
-# Ignore sensitive config (optional)
+# ==================================
+# Sensitive Configuration (Optional)
+# ==================================
+# Uncomment this if you want to ignore database credentials
 # includes/config.php
 
-# Ignore logs
+# Or create a separate config-local.php for local settings
+includes/config-local.php
+
+# ==================================
+# System Files
+# ==================================
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ==================================
+# IDE & Editor Files
+# ==================================
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# PhpStorm / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+*.sublime-settings
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+
+# Eclipse
+.project
+.buildpath
+.settings/
+
+# Atom
+.atom/
+
+# Notepad++
+*.bak
+
+# ==================================
+# Logs & Temporary Files
+# ==================================
+# Log files
 *.log
 error_log
+debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Ignore IDE files
-.vscode/
-.idea/
-*.sublime-*
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ==================================
+# PHP & Composer
+# ==================================
+# Composer dependencies (if you add Composer later)
+/vendor/
+composer.lock
+
+# PHP cache
+*.cache
+.phpunit.result.cache
+
+# ==================================
+# Database
+# ==================================
+# Database backups
+*.sql.backup
+*.sql.bak
+backup/*.sql
+backups/*.sql
+
+# SQLite databases (if you use SQLite for testing)
+*.sqlite
+*.sqlite3
+*.db
+
+# ==================================
+# Node.js (if you add JavaScript build tools)
+# ==================================
+node_modules/
+npm-debug.log
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+
+# ==================================
+# Environment Files
+# ==================================
+.env
+.env.local
+.env.*.local
+
+# ==================================
+# Testing
+# ==================================
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# PHPUnit
+phpunit.xml
+.phpunit.cache
+
+# ==================================
+# Documentation
+# ==================================
+# Ignore generated docs (keep source docs)
+docs/generated/
+
+# ==================================
+# Archives & Compressed Files
+# ==================================
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bz2
+
+# ==================================
+# Operating System
+# ==================================
+# Windows thumbnail cache
+ehthumbs.db
+ehthumbs_vista.db
+
+# Folder config file
+[Dd]esktop.ini
+
+# ==================================
+# Project Specific
+# ==================================
+# Test data
+test_data/
+dummy_users/
+
+# Reports & Documentation drafts
+/reports/drafts/
+*.draft.md
+
+# Screenshots for testing (keep final ones for report)
+/screenshots/test/
+
+# Development notes
+TODO.txt
+NOTES.txt
+dev-notes/
+
+# ==================================
+# Security
+# ==================================
+# Don't commit private keys
+*.key
+*.pem
+*.cert
+*.crt
+id_rsa
+id_rsa.pub
+
+# API keys (if you add any external APIs)
+api_keys.php
+secrets.php
+
+# ==================================
+# Performance
+# ==================================
+# Cache files
+cache/
+*.cache
+
+# Session files
+sessions/
+
+# ==================================
+# Misc
+# ==================================
+# Packaged app
+*.zip
+*.tar.gz
+
+# Old versions
+*.old
+*.backup
+*.bkp
