@@ -1,0 +1,27 @@
+
+###  Create .gitignore File
+Create a file named `.gitignore` in your project root:
+```
+# Ignore uploaded files
+uploads/profiles/*
+uploads/files/*
+uploads/images/*
+uploads/voice/*
+!uploads/profiles/default.png
+!uploads/images/default.png
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore sensitive config (optional)
+# includes/config.php
+
+# Ignore logs
+*.log
+error_log
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.sublime-*
