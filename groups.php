@@ -5,7 +5,6 @@ requireLogin();
 $success = '';
 $error = '';
 
-// Handle create group
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group'])) {
     $group_name = sanitize($_POST['group_name']);
     $group_description = sanitize($_POST['group_description']);
@@ -14,23 +13,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group'])) {
         $error = 'Group name is required';
     } else {
         $stmt = $conn->prepare("INSERT INTO group_chats (group_name, group_description, created_by) VALUES (?, ?, ?)");
-        $stmt->bind_param("ssi", $group_name, $group_description, $_SESSION['user_id']);
         
-        if ($stmt->execute()) {
-            $group_id = $stmt->insert_id;
+        if ($stmt->execute([$group_name, $group_description, $_SESSION['user_id']])) {
+            $group_id = $conn->lastInsertId();
             
             // Add creator as admin member
             $member_stmt = $conn->prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')");
-            $member_stmt->bind_param("ii", $group_id, $_SESSION['user_id']);
-            $member_stmt->execute();
-            $member_stmt->close();
+            $member_stmt->execute([$group_id, $_SESSION['user_id']]);
             
             $success = 'Group created successfully';
             logActivity($_SESSION['user_id'], "Created group: $group_name");
         } else {
             $error = 'Failed to create group';
         }
-        $stmt->close();
     }
 }
 
@@ -43,9 +38,8 @@ $my_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
     JOIN group_members gm ON g.group_id = gm.group_id
     WHERE gm.user_id = ?
     ORDER BY g.created_at DESC");
-$my_groups->bind_param("i", $_SESSION['user_id']);
-$my_groups->execute();
-$groups_result = $my_groups->get_result();
+$my_groups->execute([$_SESSION['user_id']]);
+$groups_result = $my_groups->fetchAll();
 
 // Get all available groups to join
 $available_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
@@ -55,9 +49,8 @@ $available_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
     WHERE g.group_id NOT IN (SELECT group_id FROM group_members WHERE user_id = ?)
     ORDER BY g.created_at DESC
     LIMIT 10");
-$available_groups->bind_param("i", $_SESSION['user_id']);
-$available_groups->execute();
-$available_result = $available_groups->get_result();
+$available_groups->execute([$_SESSION['user_id']]);
+$available_result = $available_groups->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -148,10 +141,10 @@ $available_result = $available_groups->get_result();
                 <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">Available Groups</h2>
                     <div class="space-y-3">
-                        <?php if ($available_result->num_rows === 0): ?>
+                        <?php if (count($available_result) === 0): ?>
                             <p class="text-gray-500 text-sm text-center py-4">No available groups</p>
                         <?php else: ?>
-                            <?php while($group = $available_result->fetch_assoc()): ?>
+                            <?php foreach($available_result as $group): ?>
                                 <div class="border border-gray-200 rounded-lg p-3">
                                     <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($group['group_name']); ?></h3>
                                     <p class="text-xs text-gray-500 mt-1"><?php echo $group['member_count']; ?> members</p>
@@ -160,7 +153,7 @@ $available_result = $available_groups->get_result();
                                         Join Group
                                     </a>
                                 </div>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -171,7 +164,7 @@ $available_result = $available_groups->get_result();
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">My Groups</h2>
                     
-                    <?php if ($groups_result->num_rows === 0): ?>
+                    <?php if (count($groups_result) === 0): ?>
                         <div class="text-center py-12">
                             <svg class="w-20 h-20 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -181,7 +174,7 @@ $available_result = $available_groups->get_result();
                         </div>
                     <?php else: ?>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <?php while($group = $groups_result->fetch_assoc()): ?>
+                            <?php foreach($groups_result as $group): ?>
                                 <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                                     <div class="flex items-start justify-between mb-3">
                                         <div class="flex-1">
@@ -210,7 +203,7 @@ $available_result = $available_groups->get_result();
                                         Open Chat
                                     </a>
                                 </div>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                 </div>

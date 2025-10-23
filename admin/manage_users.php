@@ -1,70 +1,58 @@
 <?php
-require_once 'includes/config.php';
+require_once '../includes/config.php';
 requireLogin();
+
+if (!isAdmin()) {
+    header('Location: ../dashboard.php');
+    exit();
+}
 
 $success = '';
 $error = '';
 
-// Handle create group
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group'])) {
-    $group_name = sanitize($_POST['group_name']);
-    $group_description = sanitize($_POST['group_description']);
-    
-    if (empty($group_name)) {
-        $error = 'Group name is required';
-    } else {
-        $stmt = $conn->prepare("INSERT INTO group_chats (group_name, group_description, created_by) VALUES (?, ?, ?)");
-        $stmt->bind_param("ssi", $group_name, $group_description, $_SESSION['user_id']);
-        
+// Handle user deletion
+if (isset($_GET['delete']) && !empty($_GET['delete'])) {
+    $user_id = (int)$_GET['delete'];
+    if ($user_id !== $_SESSION['user_id']) { // Can't delete yourself
+        $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
+        $stmt->execute([$user_id]);
         if ($stmt->execute()) {
-            $group_id = $stmt->insert_id;
-            
-            // Add creator as admin member
-            $member_stmt = $conn->prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')");
-            $member_stmt->bind_param("ii", $group_id, $_SESSION['user_id']);
-            $member_stmt->execute();
-            $member_stmt->close();
-            
-            $success = 'Group created successfully';
-            logActivity($_SESSION['user_id'], "Created group: $group_name");
+            $success = 'User deleted successfully';
+            logActivity($_SESSION['user_id'], "Deleted user ID: $user_id");
         } else {
-            $error = 'Failed to create group';
+            $error = 'Failed to delete user';
         }
         $stmt->close();
+    } else {
+        $error = 'You cannot delete your own account';
     }
 }
 
-// Get user's groups
-$my_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
-    (SELECT COUNT(*) FROM group_members WHERE group_id = g.group_id) as member_count,
-    (SELECT COUNT(*) FROM group_messages WHERE group_id = g.group_id) as message_count
-    FROM group_chats g
-    JOIN users u ON g.created_by = u.user_id
-    JOIN group_members gm ON g.group_id = gm.group_id
-    WHERE gm.user_id = ?
-    ORDER BY g.created_at DESC");
-$my_groups->bind_param("i", $_SESSION['user_id']);
-$my_groups->execute();
-$groups_result = $my_groups->get_result();
+// Handle role change
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_role'])) {
+    $user_id = (int)$_POST['user_id'];
+    $new_role = sanitize($_POST['role']);
+    
+    $stmt = $conn->prepare("UPDATE users SET role = ? WHERE user_id = ?");
+    $stmt->execute([$new_role, $user_id]);
+    if ($stmt->execute()) {
+        $success = 'User role updated successfully';
+        logActivity($_SESSION['user_id'], "Changed role for user ID: $user_id to $new_role");
+    } else {
+        $error = 'Failed to update role';
+    }
+    $stmt->close();
+}
 
-// Get all available groups to join
-$available_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
-    (SELECT COUNT(*) FROM group_members WHERE group_id = g.group_id) as member_count
-    FROM group_chats g
-    JOIN users u ON g.created_by = u.user_id
-    WHERE g.group_id NOT IN (SELECT group_id FROM group_members WHERE user_id = ?)
-    ORDER BY g.created_at DESC
-    LIMIT 10");
-$available_groups->bind_param("i", $_SESSION['user_id']);
-$available_groups->execute();
-$available_result = $available_groups->get_result();
+// Get all users
+$users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Chats - LAN Chat</title>
+    <title>Manage Users - Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
@@ -73,16 +61,12 @@ $available_result = $available_groups->get_result();
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-4">
-                    <a href="dashboard.php" class="flex items-center space-x-2">
-                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                        <span class="text-xl font-bold text-gray-800">Group Chats</span>
-                    </a>
+                    <h1 class="text-xl font-bold text-gray-800">User Management</h1>
                 </div>
-                <a href="dashboard.php" class="text-purple-600 hover:text-purple-800 font-semibold">
-                    ← Back to Dashboard
-                </a>
+                <div class="flex items-center space-x-4">
+                    <a href="dashboard.php" class="text-gray-600 hover:text-purple-600">Dashboard</a>
+                    <a href="../dashboard.php" class="text-purple-600 hover:text-purple-800 font-semibold">← Back to Chat</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -101,119 +85,86 @@ $available_result = $available_groups->get_result();
             </div>
         <?php endif; ?>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Create Group Form -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Create New Group
-                    </h2>
-                    <form method="POST">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Group Name *</label>
-                                <input 
-                                    type="text" 
-                                    name="group_name" 
-                                    maxlength="100"
-                                    placeholder="e.g., Team Project"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    required
-                                >
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Description</label>
-                                <textarea 
-                                    name="group_description" 
-                                    rows="3"
-                                    placeholder="What's this group about?"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                ></textarea>
-                            </div>
-                            <button 
-                                type="submit" 
-                                name="create_group"
-                                class="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700"
-                            >
-                                Create Group
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Available Groups -->
-                <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">Available Groups</h2>
-                    <div class="space-y-3">
-                        <?php if ($available_result->num_rows === 0): ?>
-                            <p class="text-gray-500 text-sm text-center py-4">No available groups</p>
-                        <?php else: ?>
-                            <?php while($group = $available_result->fetch_assoc()): ?>
-                                <div class="border border-gray-200 rounded-lg p-3">
-                                    <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($group['group_name']); ?></h3>
-                                    <p class="text-xs text-gray-500 mt-1"><?php echo $group['member_count']; ?> members</p>
-                                    <a href="group_chat.php?join=<?php echo $group['group_id']; ?>" 
-                                       class="mt-2 block text-center bg-purple-100 text-purple-700 py-1 rounded hover:bg-purple-200 text-sm font-semibold">
-                                        Join Group
-                                    </a>
-                                </div>
-                            <?php endwhile; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
+        <!-- Users Table -->
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">All Users</h2>
+                <span class="text-sm text-gray-600"><?php echo $users->num_rows; ?> total users</span>
             </div>
-
-            <!-- My Groups -->
-            <div class="lg:col-span-2">
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">My Groups</h2>
-                    
-                    <?php if ($groups_result->num_rows === 0): ?>
-                        <div class="text-center py-12">
-                            <svg class="w-20 h-20 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            <h3 class="text-lg font-semibold text-gray-600 mb-2">No Groups Yet</h3>
-                            <p class="text-gray-500">Create a group or join an existing one to get started!</p>
-                        </div>
-                    <?php else: ?>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <?php while($group = $groups_result->fetch_assoc()): ?>
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                    <div class="flex items-start justify-between mb-3">
-                                        <div class="flex-1">
-                                            <h3 class="font-bold text-gray-800 text-lg"><?php echo htmlspecialchars($group['group_name']); ?></h3>
-                                            <?php if ($group['group_description']): ?>
-                                                <p class="text-sm text-gray-600 mt-1"><?php echo htmlspecialchars($group['group_description']); ?></p>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                            </svg>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <?php while($user = $users->fetch_assoc()): ?>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <img src="../uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
+                                             alt="Profile" 
+                                             class="w-10 h-10 rounded-full mr-3"
+                                             onerror="this.src='../assets/images/default.png'">
+                                        <div>
+                                            <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($user['full_name']); ?></p>
+                                            <p class="text-sm text-gray-500">@<?php echo htmlspecialchars($user['username']); ?></p>
                                         </div>
                                     </div>
-                                    
-                                    <div class="flex items-center justify-between text-sm text-gray-500 mb-3">
-                                        <span><?php echo $group['member_count']; ?> members</span>
-                                        <span>•</span>
-                                        <span><?php echo $group['message_count']; ?> messages</span>
-                                        <span>•</span>
-                                        <span>by <?php echo htmlspecialchars($group['creator_name']); ?></span>
-                                    </div>
-                                    
-                                    <a href="group_chat.php?id=<?php echo $group['group_id']; ?>" 
-                                       class="block text-center bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-semibold">
-                                        Open Chat
-                                    </a>
-                                </div>
-                            <?php endwhile; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php echo htmlspecialchars($user['email']); ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <form method="POST" class="inline">
+                                        <input type="hidden" name="user_id" value="<?php echo $user['user_id']; ?>">
+                                        <select name="role" onchange="this.form.submit()" class="text-sm border border-gray-300 rounded px-2 py-1 <?php echo $user['user_id'] === $_SESSION['user_id'] ? 'bg-gray-100' : ''; ?>" <?php echo $user['user_id'] === $_SESSION['user_id'] ? 'disabled' : ''; ?>>
+                                            <option value="user" <?php echo $user['role'] === 'user' ? 'selected' : ''; ?>>User</option>
+                                            <option value="student" <?php echo $user['role'] === 'student' ? 'selected' : ''; ?>>Student</option>
+                                            <option value="staff" <?php echo $user['role'] === 'staff' ? 'selected' : ''; ?>>Staff</option>
+                                            <option value="admin" <?php echo $user['role'] === 'admin' ? 'selected' : ''; ?>>Admin</option>
+                                        </select>
+                                        <input type="hidden" name="change_role" value="1">
+                                    </form>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <?php
+                                    $status_colors = [
+                                        'online' => 'bg-green-100 text-green-800',
+                                        'offline' => 'bg-gray-100 text-gray-800',
+                                        'busy' => 'bg-red-100 text-red-800',
+                                        'away' => 'bg-yellow-100 text-yellow-800'
+                                    ];
+                                    $color = $status_colors[$user['status']] ?? 'bg-gray-100 text-gray-800';
+                                    ?>
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo $color; ?>">
+                                        <?php echo ucfirst($user['status']); ?>
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php echo date('M d, Y', strtotime($user['created_at'])); ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <?php if ($user['user_id'] !== $_SESSION['user_id']): ?>
+                                        <a href="?delete=<?php echo $user['user_id']; ?>" 
+                                           onclick="return confirm('Are you sure you want to delete this user?')"
+                                           class="text-red-600 hover:text-red-800 font-semibold">
+                                            Delete
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-gray-400">Current User</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

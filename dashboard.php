@@ -160,4 +160,332 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 
                 <div class="user-list scrollbar-hide">
                     <?php foreach($users as $user): ?>
-                        <div class="user-item p-3 hover:bg-
+                        <div class="user-item p-3 hover:bg-gray-50 rounded-lg cursor-pointer mb-2 border border-gray-100" 
+                             data-user-id="<?php echo $user['user_id']; ?>"
+                             data-username="<?php echo htmlspecialchars($user['username']); ?>"
+                             data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>">
+                            <div class="flex items-center space-x-3">
+                                <div class="relative">
+                                    <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
+                                         alt="<?php echo htmlspecialchars($user['full_name']); ?>" 
+                                         class="w-12 h-12 rounded-full"
+                                         onerror="this.src='assets/images/default.png'">
+                                    <span class="online-dot <?php echo $user['status']; ?> absolute bottom-0 right-0 border-2 border-white"></span>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm text-gray-800"><?php echo htmlspecialchars($user['full_name']); ?></p>
+                                    <p class="text-xs text-gray-500">
+                                        <?php 
+                                        if ($user['status'] === 'online') {
+                                            echo 'Online';
+                                        } else {
+                                            echo timeAgo($user['last_seen']);
+                                        }
+                                        ?>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- Announcements -->
+                <?php if (count($announcements) > 0): ?>
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-4 text-white">
+                        <h3 class="font-bold text-lg mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                            </svg>
+                            Announcements
+                        </h3>
+                        <?php foreach($announcements as $announcement): ?>
+                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2">
+                                <p class="font-semibold"><?php echo htmlspecialchars($announcement['title']); ?></p>
+                                <p class="text-sm opacity-90"><?php echo htmlspecialchars($announcement['content']); ?></p>
+                                <p class="text-xs opacity-75 mt-1">By <?php echo htmlspecialchars($announcement['author']); ?> • <?php echo timeAgo($announcement['created_at']); ?></p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Chat Window -->
+                <div class="bg-white rounded-lg shadow-lg chat-container">
+                    <!-- Chat Header -->
+                    <div id="chatHeader" class="border-b border-gray-200 p-4 bg-gray-50 rounded-t-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="text-gray-500 flex items-center">
+                                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                    </svg>
+                                    <span>Select a user to start chatting</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Area -->
+                    <div id="chatMessages" class="chat-messages p-4 bg-gray-50">
+                        <div class="flex items-center justify-center h-full text-gray-400">
+                            <div class="text-center">
+                                <svg class="w-20 h-20 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                                <p class="text-lg">No conversation selected</p>
+                                <p class="text-sm">Choose a user from the list to start messaging</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Message Input -->
+                    <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
+                        <form id="messageForm" class="flex items-center space-x-3">
+                            <input type="hidden" id="receiverId" value="">
+                            
+                            <!-- File Upload Button -->
+                            <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                </svg>
+                            </button>
+                            <input type="file" id="fileInput" class="hidden">
+                            
+                            <!-- Emoji Button -->
+                            <button type="button" id="emojiBtn" class="text-gray-500 hover:text-purple-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </button>
+                            
+                            <!-- Message Input -->
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                placeholder="Type a message..." 
+                                class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                autocomplete="off"
+                            >
+                            
+                            <!-- Send Button -->
+                            <button 
+                                type="submit" 
+                                class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentChatUser = null;
+        let messageCheckInterval = null;
+        const currentUserId = <?php echo $_SESSION['user_id']; ?>;
+
+        // User menu toggle
+        document.getElementById('userMenuBtn').addEventListener('click', function() {
+            document.getElementById('userMenu').classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#userMenuBtn') && !e.target.closest('#userMenu')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+
+        // User item click
+        document.querySelectorAll('.user-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                const fullName = this.dataset.fullname;
+                const username = this.dataset.username;
+                
+                openChat(userId, fullName, username);
+            });
+        });
+
+        // Search users
+        document.getElementById('searchUsers').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll('.user-item').forEach(item => {
+                const fullName = item.dataset.fullname.toLowerCase();
+                const username = item.dataset.username.toLowerCase();
+                
+                if (fullName.includes(searchTerm) || username.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Open chat with user
+        function openChat(userId, fullName, username) {
+            currentChatUser = userId;
+            
+            // Update chat header
+            document.getElementById('chatHeader').innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <img src="uploads/profiles/default.png" 
+                             alt="${fullName}" 
+                             class="w-10 h-10 rounded-full"
+                             onerror="this.src='assets/images/default.png'">
+                        <div>
+                            <p class="font-semibold text-gray-800">${fullName}</p>
+                            <p class="text-xs text-gray-500">@${username}</p>
+                        </div>
+                    </div>
+                    <button onclick="clearChat()" class="text-gray-500 hover:text-red-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            // Show message input
+            document.getElementById('messageInputArea').classList.remove('hidden');
+            document.getElementById('receiverId').value = userId;
+            
+            // Load messages
+            loadMessages(userId);
+            
+            // Start polling for new messages
+            if (messageCheckInterval) {
+                clearInterval(messageCheckInterval);
+            }
+            messageCheckInterval = setInterval(() => loadMessages(userId), 3000);
+        }
+
+        // Load messages
+        function loadMessages(userId) {
+            fetch(`chat/get_messages.php?user_id=${userId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayMessages(data.messages);
+                    }
+                })
+                .catch(error => console.error('Error loading messages:', error));
+        }
+
+        // Display messages
+        function displayMessages(messages) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            if (messages.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="flex items-center justify-center h-full text-gray-400">
+                        <div class="text-center">
+                            <p class="text-lg">No messages yet</p>
+                            <p class="text-sm">Start the conversation!</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            messages.forEach(msg => {
+                const isSent = msg.sender_id == currentUserId;
+                const alignClass = isSent ? 'justify-end' : 'justify-start';
+                const bgClass = isSent ? 'bg-purple-600 text-white' : 'bg-white text-gray-800';
+                
+                html += `
+                    <div class="flex ${alignClass} mb-4">
+                        <div class="message-bubble ${bgClass} rounded-lg p-3 shadow">
+                            <p>${escapeHtml(msg.message_text)}</p>
+                            <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1">
+                                ${formatTime(msg.created_at)}
+                                ${isSent && msg.is_read ? '✓✓' : isSent ? '✓' : ''}
+                            </p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            chatMessages.innerHTML = html;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Send message
+        document.getElementById('messageForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const messageInput = document.getElementById('messageInput');
+            const receiverId = document.getElementById('receiverId').value;
+            const messageText = messageInput.value.trim();
+            
+            if (!messageText || !receiverId) return;
+            
+            const formData = new FormData();
+            formData.append('receiver_id', receiverId);
+            formData.append('message_text', messageText);
+            
+            fetch('chat/send_message.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageInput.value = '';
+                    loadMessages(receiverId);
+                }
+            })
+            .catch(error => console.error('Error sending message:', error));
+        });
+
+        // Helper functions
+        function clearChat() {
+            currentChatUser = null;
+            if (messageCheckInterval) {
+                clearInterval(messageCheckInterval);
+            }
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="flex items-center justify-center h-full text-gray-400">
+                    <div class="text-center">
+                        <svg class="w-20 h-20 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <p class="text-lg">No conversation selected</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('messageInputArea').classList.add('hidden');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        // Update user status every 30 seconds
+        setInterval(() => {
+            fetch('api/update_status.php', { method: 'POST' });
+        }, 30000);
+    </script>
+</body>
+</html>

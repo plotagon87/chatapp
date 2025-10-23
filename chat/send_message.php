@@ -28,21 +28,18 @@ if (empty($message_text) && empty($file_path)) {
 
 // Check if receiver exists
 $check_user = $conn->prepare("SELECT user_id FROM users WHERE user_id = ?");
-$check_user->bind_param("i", $receiver_id);
-$check_user->execute();
-$result = $check_user->get_result();
+$check_user->execute([$receiver_id]);
 
-if ($result->num_rows === 0) {
+if ($check_user->rowCount() === 0) {
     echo json_encode(['success' => false, 'message' => 'Receiver not found']);
     exit();
 }
 
 // Insert message
 $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message_text, message_type, file_path) VALUES (?, ?, ?, ?, ?)");
-$stmt->bind_param("iisss", $sender_id, $receiver_id, $message_text, $message_type, $file_path);
 
-if ($stmt->execute()) {
-    $message_id = $stmt->insert_id;
+if ($stmt->execute([$sender_id, $receiver_id, $message_text, $message_type, $file_path])) {
+    $message_id = $conn->lastInsertId();
     
     // Create notification for receiver
     $sender_name = $_SESSION['full_name'];
@@ -61,11 +58,7 @@ if ($stmt->execute()) {
 } else {
     echo json_encode([
         'success' => false,
-        'message' => 'Failed to send message',
-        'error' => $conn->error
+        'message' => 'Failed to send message'
     ]);
 }
-
-$stmt->close();
-$conn->close();
 ?>

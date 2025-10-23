@@ -1,60 +1,162 @@
 <?php
-// Minimal application config and helpers
-// Starts session, creates a PDO $conn, and defines small helper functions used across pages.
+/**
+ * Database Configuration File
+ * LAN Chat Application - PDO Version
+ */
 
+// Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Database connection (assuming default XAMPP MySQL settings). Adjust credentials as needed.
+// Database Configuration
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'lan_chat_db');
+
+// Application Configuration
+define('BASE_URL', 'http://' . $_SERVER['HTTP_HOST'] . '/chat-app/');
+define('UPLOAD_PATH', __DIR__ . '/../uploads/');
+define('MAX_FILE_SIZE', 10485760); // 10MB
+define('ALLOWED_FILE_TYPES', 'jpg,jpeg,png,pdf,doc,docx,txt,zip');
+$types = explode(',', ALLOWED_FILE_TYPES);
+
+// Create PDO database connection
 try {
-    $dbHost = '127.0.0.1';
-    $dbName = 'lan_chat_db';
-    $dbUser = 'root';
-    $dbPass = '';
-    $conn = new PDO("mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
-} catch (PDOException $e) {
-    // In production, log error instead of displaying
-    die('Database connection failed: ' . $e->getMessage());
+    $conn = new PDO(
+        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+        DB_USER,
+        DB_PASS,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false
+        ]
+    );
+} catch(PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
 }
 
-// Basic sanitizer
-function sanitize($value) {
-    return htmlspecialchars(trim($value), ENT_QUOTES, 'UTF-8');
+/**
+ * Sanitize input data
+ */
+function sanitize($data) {
+    $data = trim($data);
+    $data = stripslashes($data);
+    $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+    return $data;
 }
 
-// If user is already logged in, redirect to dashboard
+/**
+ * Check if user is logged in
+ */
+function isLoggedIn() {
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+}
+
+/**
+ * Check if user is admin
+ */
+function isAdmin() {
+    return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+}
+
+/**
+ * Redirect to login if not authenticated
+ */
+function requireLogin() {
+    if (!isLoggedIn()) {
+        header('Location: index.php');
+        exit();
+    }
+}
+
+/**
+ * Redirect to dashboard if already logged in
+ */
 function redirectIfLoggedIn() {
-    if (!empty($_SESSION['user_id'])) {
+    if (isLoggedIn()) {
         header('Location: dashboard.php');
         exit();
     }
 }
 
-// Stub: update user status in DB
-function updateUserStatus($userId, $status) {
+/**
+ * Update user's last seen timestamp
+ */
+function updateLastSeen($user_id) {
     global $conn;
-    try {
-        $stmt = $conn->prepare('UPDATE users SET status = ? WHERE user_id = ?');
-        $stmt->execute([$status, $userId]);
-    } catch (Exception $e) {
-        // ignore failures for now
+    $stmt = $conn->prepare("UPDATE users SET last_seen = NOW() WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+}
+
+/**
+ * Update user's online status
+ */
+function updateUserStatus($user_id, $status) {
+    global $conn;
+    $stmt = $conn->prepare("UPDATE users SET status = ? WHERE user_id = ?");
+    $stmt->execute([$status, $user_id]);
+}
+
+/**
+ * Log user activity
+ */
+function logActivity($user_id, $action) {
+    global $conn;
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $user_agent = $_SERVER['HTTP_USER_AGENT'];
+    
+    $stmt = $conn->prepare("INSERT INTO activity_log (user_id, action, ip_address, user_agent) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$user_id, $action, $ip, $user_agent]);
+}
+
+/**
+ * Get user data by ID
+ */
+function getUserData($user_id) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT user_id, username, email, full_name, profile_picture, role, status, custom_status, theme_preference, last_seen, created_at FROM users WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+    return $stmt->fetch();
+}
+
+/**
+ * Format time ago
+ */
+function timeAgo($timestamp) {
+    $time = strtotime($timestamp);
+    $diff = time() - $time;
+    
+    if ($diff < 60) {
+        return "just now";
+    } elseif ($diff < 3600) {
+        $mins = floor($diff / 60);
+        return $mins . " min" . ($mins > 1 ? "s" : "") . " ago";
+    } elseif ($diff < 86400) {
+        $hours = floor($diff / 3600);
+        return $hours . " hour" . ($hours > 1 ? "s" : "") . " ago";
+    } elseif ($diff < 604800) {
+        $days = floor($diff / 86400);
+        return $days . " day" . ($days > 1 ? "s" : "") . " ago";
+    } else {
+        return date("M d, Y", $time);
     }
 }
 
-// Stub: log activity to a simple table or file
-function logActivity($userId, $action) {
+/**
+ * Create notification
+ */
+function createNotification($user_id, $type, $content, $related_id = null) {
     global $conn;
-    try {
-        $stmt = $conn->prepare('INSERT INTO activity_log (user_id, action, created_at) VALUES (?, ?, NOW())');
-        $stmt->execute([$userId, $action]);
-    } catch (Exception $e) {
-        // ignore failures - optional: write to file
-    }
+    $stmt = $conn->prepare("INSERT INTO notifications (user_id, notification_type, content, related_id) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$user_id, $type, $content, $related_id]);
 }
 
-// Ensure the helper functions are available when this file is included
-return;
+// Update user status to online when they access any page (if logged in)
+if (isLoggedIn()) {
+    updateUserStatus($_SESSION['user_id'], 'online');
+    updateLastSeen($_SESSION['user_id']);
+}
+?>

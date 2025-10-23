@@ -2,82 +2,98 @@
 require_once 'includes/config.php';
 requireLogin();
 
+$user = getUserData($_SESSION['user_id']);
 $success = '';
 $error = '';
 
-// Handle create group
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group'])) {
-    $group_name = sanitize($_POST['group_name']);
-    $group_description = sanitize($_POST['group_description']);
+// Handle profile update
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $full_name = sanitize($_POST['full_name']);
+    $email = sanitize($_POST['email']);
+    $custom_status = sanitize($_POST['custom_status']);
     
-    if (empty($group_name)) {
-        $error = 'Group name is required';
+    // Validate
+    if (empty($full_name) || empty($email)) {
+        $error = 'Name and email are required';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Invalid email format';
     } else {
-        $stmt = $conn->prepare("INSERT INTO group_chats (group_name, group_description, created_by) VALUES (?, ?, ?)");
-        $stmt->bind_param("ssi", $group_name, $group_description, $_SESSION['user_id']);
+        // Check if email is already taken by another user
+        $check_email = $conn->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
+        $check_email->execute([$email, $_SESSION['user_id']]);
         
-        if ($stmt->execute()) {
-            $group_id = $stmt->insert_id;
-            
-            // Add creator as admin member
-            $member_stmt = $conn->prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')");
-            $member_stmt->bind_param("ii", $group_id, $_SESSION['user_id']);
-            $member_stmt->execute();
-            $member_stmt->close();
-            
-            $success = 'Group created successfully';
-            logActivity($_SESSION['user_id'], "Created group: $group_name");
+        if ($check_email->rowCount() > 0) {
+            $error = 'Email already in use';
         } else {
-            $error = 'Failed to create group';
+            // Handle profile picture upload
+            $profile_picture = $user['profile_picture'];
+            if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['profile_picture'];
+                $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                
+                if (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    $upload_dir = UPLOAD_PATH . 'profiles/';
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+                    
+                    $new_filename = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $file_extension;
+                    $upload_path = $upload_dir . $new_filename;
+                    
+                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                        // Delete old profile picture if not default
+                        if ($user['profile_picture'] !== 'default.png' && file_exists($upload_dir . $user['profile_picture'])) {
+                            unlink($upload_dir . $user['profile_picture']);
+                        }
+                        $profile_picture = $new_filename;
+                    }
+                }
+            }
+            
+            // Update profile
+            $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ? WHERE user_id = ?");
+            
+            if ($stmt->execute([$full_name, $email, $custom_status, $profile_picture, $_SESSION['user_id']])) {
+                $_SESSION['full_name'] = $full_name;
+                $_SESSION['profile_picture'] = $profile_picture;
+                $success = 'Profile updated successfully';
+                $user = getUserData($_SESSION['user_id']); // Refresh user data
+                logActivity($_SESSION['user_id'], 'Updated profile');
+            } else {
+                $error = 'Failed to update profile';
+            }
         }
-        $stmt->close();
     }
 }
 
-// Get user's groups
-$my_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
-    (SELECT COUNT(*) FROM group_members WHERE group_id = g.group_id) as member_count,
-    (SELECT COUNT(*) FROM group_messages WHERE group_id = g.group_id) as message_count
-    FROM group_chats g
-    JOIN users u ON g.created_by = u.user_id
-    JOIN group_members gm ON g.group_id = gm.group_id
-    WHERE gm.user_id = ?
-    ORDER BY g.created_at DESC");
-$my_groups->bind_param("i", $_SESSION['user_id']);
-$my_groups->execute();
-$groups_result = $my_groups->get_result();
-
-// Get all available groups to join
-$available_groups = $conn->prepare("SELECT g.*, u.full_name as creator_name,
-    (SELECT COUNT(*) FROM group_members WHERE group_id = g.group_id) as member_count
-    FROM group_chats g
-    JOIN users u ON g.created_by = u.user_id
-    WHERE g.group_id NOT IN (SELECT group_id FROM group_members WHERE user_id = ?)
-    ORDER BY g.created_at DESC
-    LIMIT 10");
-$available_groups->bind_param("i", $_SESSION['user_id']);
-$available_groups->execute();
-$available_result = $available_groups->get_result();
+// Get user statistics
+$stats_query = "SELECT 
+    (SELECT COUNT(*) FROM messages WHERE sender_id = ?) as messages_sent,
+    (SELECT COUNT(*) FROM messages WHERE receiver_id = ?) as messages_received,
+    (SELECT COUNT(*) FROM group_members WHERE user_id = ?) as groups_joined";
+$stmt = $conn->prepare($stats_query);
+$stmt->execute([$_SESSION['user_id'], $_SESSION['user_id'], $_SESSION['user_id']]);
+$stats = $stmt->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Chats - LAN Chat</title>
+    <title>My Profile - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
-    <!-- Navigation -->
+    <!-- Top Navigation -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-4">
                     <a href="dashboard.php" class="flex items-center space-x-2">
                         <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                         </svg>
-                        <span class="text-xl font-bold text-gray-800">Group Chats</span>
+                        <span class="text-xl font-bold text-gray-800">LAN Chat</span>
                     </a>
                 </div>
                 <a href="dashboard.php" class="text-purple-600 hover:text-purple-800 font-semibold">
@@ -88,131 +104,175 @@ $available_result = $available_groups->get_result();
     </nav>
 
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <?php if ($error): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                <?php echo $error; ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($success): ?>
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                <?php echo $success; ?>
-            </div>
-        <?php endif; ?>
-
+    <div class="max-w-4xl mx-auto px-4 py-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Create Group Form -->
+            <!-- Profile Card -->
             <div class="lg:col-span-1">
                 <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Create New Group
-                    </h2>
-                    <form method="POST">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Group Name *</label>
-                                <input 
-                                    type="text" 
-                                    name="group_name" 
-                                    maxlength="100"
-                                    placeholder="e.g., Team Project"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    required
-                                >
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Description</label>
-                                <textarea 
-                                    name="group_description" 
-                                    rows="3"
-                                    placeholder="What's this group about?"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                ></textarea>
-                            </div>
-                            <button 
-                                type="submit" 
-                                name="create_group"
-                                class="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700"
-                            >
-                                Create Group
-                            </button>
+                    <div class="text-center">
+                        <div class="relative inline-block">
+                            <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
+                                 alt="Profile" 
+                                 class="w-32 h-32 rounded-full mx-auto border-4 border-purple-500"
+                                 onerror="this.src='assets/images/default.png'">
+                            <span class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></span>
                         </div>
-                    </form>
-                </div>
-
-                <!-- Available Groups -->
-                <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">Available Groups</h2>
-                    <div class="space-y-3">
-                        <?php if ($available_result->num_rows === 0): ?>
-                            <p class="text-gray-500 text-sm text-center py-4">No available groups</p>
-                        <?php else: ?>
-                            <?php while($group = $available_result->fetch_assoc()): ?>
-                                <div class="border border-gray-200 rounded-lg p-3">
-                                    <h3 class="font-semibold text-gray-800"><?php echo htmlspecialchars($group['group_name']); ?></h3>
-                                    <p class="text-xs text-gray-500 mt-1"><?php echo $group['member_count']; ?> members</p>
-                                    <a href="group_chat.php?join=<?php echo $group['group_id']; ?>" 
-                                       class="mt-2 block text-center bg-purple-100 text-purple-700 py-1 rounded hover:bg-purple-200 text-sm font-semibold">
-                                        Join Group
-                                    </a>
-                                </div>
-                            <?php endwhile; ?>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-4"><?php echo htmlspecialchars($user['full_name']); ?></h2>
+                        <p class="text-gray-600">@<?php echo htmlspecialchars($user['username']); ?></p>
+                        <span class="inline-block mt-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
+                            <?php echo ucfirst($user['role']); ?>
+                        </span>
+                        <?php if ($user['custom_status']): ?>
+                            <p class="mt-3 text-sm text-gray-600 italic">
+                                "<?php echo htmlspecialchars($user['custom_status']); ?>"
+                            </p>
                         <?php endif; ?>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h3 class="font-semibold text-gray-800 mb-3">Statistics</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">Messages Sent</span>
+                                <span class="font-bold text-purple-600"><?php echo $stats['messages_sent']; ?></span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">Messages Received</span>
+                                <span class="font-bold text-purple-600"><?php echo $stats['messages_received']; ?></span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600">Groups Joined</span>
+                                <span class="font-bold text-purple-600"><?php echo $stats['groups_joined']; ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Info -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h3 class="font-semibold text-gray-800 mb-3">Account Info</h3>
+                        <div class="space-y-2 text-sm">
+                            <p class="text-gray-600">
+                                <span class="font-semibold">Joined:</span> 
+                                <?php echo date('M d, Y', strtotime($user['created_at'])); ?>
+                            </p>
+                            <p class="text-gray-600">
+                                <span class="font-semibold">Last Seen:</span> 
+                                <?php echo timeAgo($user['last_seen']); ?>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- My Groups -->
+            <!-- Edit Profile Form -->
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">My Groups</h2>
-                    
-                    <?php if ($groups_result->num_rows === 0): ?>
-                        <div class="text-center py-12">
-                            <svg class="w-20 h-20 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            <h3 class="text-lg font-semibold text-gray-600 mb-2">No Groups Yet</h3>
-                            <p class="text-gray-500">Create a group or join an existing one to get started!</p>
-                        </div>
-                    <?php else: ?>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <?php while($group = $groups_result->fetch_assoc()): ?>
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                    <div class="flex items-start justify-between mb-3">
-                                        <div class="flex-1">
-                                            <h3 class="font-bold text-gray-800 text-lg"><?php echo htmlspecialchars($group['group_name']); ?></h3>
-                                            <?php if ($group['group_description']): ?>
-                                                <p class="text-sm text-gray-600 mt-1"><?php echo htmlspecialchars($group['group_description']); ?></p>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="flex items-center justify-between text-sm text-gray-500 mb-3">
-                                        <span><?php echo $group['member_count']; ?> members</span>
-                                        <span>•</span>
-                                        <span><?php echo $group['message_count']; ?> messages</span>
-                                        <span>•</span>
-                                        <span>by <?php echo htmlspecialchars($group['creator_name']); ?></span>
-                                    </div>
-                                    
-                                    <a href="group_chat.php?id=<?php echo $group['group_id']; ?>" 
-                                       class="block text-center bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-semibold">
-                                        Open Chat
-                                    </a>
-                                </div>
-                            <?php endwhile; ?>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Edit Profile</h2>
+
+                    <?php if ($error): ?>
+                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            <?php echo $error; ?>
                         </div>
                     <?php endif; ?>
+
+                    <?php if ($success): ?>
+                        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                            <?php echo $success; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="space-y-4">
+                            <!-- Profile Picture -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Profile Picture
+                                </label>
+                                <input 
+                                    type="file" 
+                                    name="profile_picture" 
+                                    accept="image/*"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                                <p class="text-xs text-gray-500 mt-1">Supported: JPG, PNG, GIF (Max 5MB)</p>
+                            </div>
+
+                            <!-- Full Name -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Full Name *
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="full_name" 
+                                    value="<?php echo htmlspecialchars($user['full_name']); ?>"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    required
+                                >
+                            </div>
+
+                            <!-- Email -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Email Address *
+                                </label>
+                                <input 
+                                    type="email" 
+                                    name="email" 
+                                    value="<?php echo htmlspecialchars($user['email']); ?>"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    required
+                                >
+                            </div>
+
+                            <!-- Username (Read-only) -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Username
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value="<?php echo htmlspecialchars($user['username']); ?>"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                                    readonly
+                                >
+                                <p class="text-xs text-gray-500 mt-1">Username cannot be changed</p>
+                            </div>
+
+                            <!-- Custom Status -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">
+                                    Custom Status
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="custom_status" 
+                                    value="<?php echo htmlspecialchars($user['custom_status'] ?? ''); ?>"
+                                    placeholder="e.g., Busy coding..."
+                                    maxlength="100"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="pt-4">
+                                <button 
+                                    type="submit" 
+                                    class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition duration-200">
+                                    Update Profile
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Change Password Section -->
+                    <div class="mt-8 pt-8 border-t border-gray-200">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Security</h3>
+                        <a href="settings.php" class="inline-block bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-200">
+                            Change Password
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
