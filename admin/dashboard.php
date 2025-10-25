@@ -1,5 +1,4 @@
 <?php
-
 require_once __DIR__ . '/../includes/config.php';
 requireLogin();
 
@@ -18,8 +17,8 @@ $stats_stmt = $conn->query("
         (SELECT COUNT(*) FROM users) as total_users,
         (SELECT COUNT(*) FROM users WHERE status = 'online') as online_users,
         (SELECT COUNT(*) FROM messages WHERE DATE(created_at) = CURDATE()) as today_messages,
-    (SELECT COUNT(*) FROM announcements WHERE is_active = 1) as active_announcements,
-    (SELECT COUNT(*) FROM group_chats) as total_groups,
+        (SELECT COUNT(*) FROM announcements WHERE is_active = 1) as active_announcements,
+        (SELECT COUNT(*) FROM group_chats) as total_groups,
         (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as new_users_week
 ");
 $stats = $stats_stmt->fetch();
@@ -43,9 +42,14 @@ $recent_activities = $activities_stmt->fetchAll();
     <style>
         .stat-card {
             transition: transform 0.2s ease-in-out;
+            cursor: pointer;
         }
         .stat-card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .clickable-card {
+            cursor: pointer;
         }
     </style>
 </head>
@@ -103,8 +107,8 @@ $recent_activities = $activities_stmt->fetchAll();
 
         <!-- Statistics Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Total Users -->
-            <div class="stat-card bg-white rounded-lg shadow p-6">
+            <!-- Total Users - Clickable -->
+            <div class="stat-card bg-white rounded-lg shadow p-6 clickable-card" onclick="window.location.href='view_users.php'">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-blue-100 text-blue-600">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,12 +118,13 @@ $recent_activities = $activities_stmt->fetchAll();
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Total Users</p>
                         <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['total_users']; ?></p>
+                        <p class="text-xs text-gray-500 mt-1">Click to view all users</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Online Users -->
-            <div class="stat-card bg-white rounded-lg shadow p-6">
+            <!-- Online Users - Clickable -->
+            <div class="stat-card bg-white rounded-lg shadow p-6 clickable-card" onclick="window.location.href='view_online_users.php'">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-green-100 text-green-600">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,6 +134,7 @@ $recent_activities = $activities_stmt->fetchAll();
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Online Users</p>
                         <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['online_users']; ?></p>
+                        <p class="text-xs text-gray-500 mt-1">Click to view online users</p>
                     </div>
                 </div>
             </div>
@@ -163,8 +169,8 @@ $recent_activities = $activities_stmt->fetchAll();
                 </div>
             </div>
 
-            <!-- Total Groups -->
-            <div class="stat-card bg-white rounded-lg shadow p-6">
+            <!-- Total Groups - Clickable -->
+            <div class="stat-card bg-white rounded-lg shadow p-6 clickable-card" onclick="window.location.href='view_groups.php'">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,12 +180,13 @@ $recent_activities = $activities_stmt->fetchAll();
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Total Groups</p>
                         <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['total_groups']; ?></p>
+                        <p class="text-xs text-gray-500 mt-1">Click to view all groups</p>
                     </div>
                 </div>
             </div>
 
-            <!-- New Users (Week) -->
-            <div class="stat-card bg-white rounded-lg shadow p-6">
+            <!-- New Users (Week) - Clickable -->
+            <div class="stat-card bg-white rounded-lg shadow p-6 clickable-card" onclick="window.location.href='view_new_users.php'">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-pink-100 text-pink-600">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,6 +196,7 @@ $recent_activities = $activities_stmt->fetchAll();
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">New Users (Week)</p>
                         <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['new_users_week']; ?></p>
+                        <p class="text-xs text-gray-500 mt-1">Click to view new users</p>
                     </div>
                 </div>
             </div>
@@ -274,6 +282,16 @@ $recent_activities = $activities_stmt->fetchAll();
             if (!e.target.closest('#userMenuBtn') && !e.target.closest('#userMenu')) {
                 document.getElementById('userMenu').classList.add('hidden');
             }
+        });
+
+        // Add click effect to clickable cards
+        document.querySelectorAll('.clickable-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'translateY(-1px)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
         });
     </script>
 </body>
