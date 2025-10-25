@@ -36,6 +36,29 @@ try {
 } catch(PDOException $e) {
     die("Connection failed: " . $e->getMessage());
 }
+ 
+// Load system settings into $settings (non-fatal if table doesn't exist yet)
+$settings = [];
+try {
+    $stmt = $conn->query("SHOW TABLES LIKE 'system_settings'");
+    if ($stmt && $stmt->fetch()) {
+        $sstmt = $conn->query("SELECT setting_key, setting_value FROM system_settings");
+        $rows = $sstmt->fetchAll();
+        foreach ($rows as $r) {
+            $settings[$r['setting_key']] = $r['setting_value'];
+        }
+    }
+} catch (PDOException $e) {
+    // ignore - table may not exist yet
+}
+
+/**
+ * Helper to read settings loaded from `system_settings` table
+ */
+function getSetting($key, $default = null) {
+    global $settings;
+    return isset($settings[$key]) ? $settings[$key] : $default;
+}
 
 /**
  * Sanitize input data

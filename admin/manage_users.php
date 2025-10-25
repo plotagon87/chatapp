@@ -42,8 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_role'])) {
     }
 }
 
-// Get all users
-$users_stmt = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
+// Paginated users list (avoid loading everything into memory)
+$perPage = 20;
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $perPage;
+
+$countStmt = $conn->query("SELECT COUNT(*) FROM users");
+$totalUsers = (int) $countStmt->fetchColumn();
+
+$users_stmt = $conn->prepare("SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?");
+$users_stmt->bindValue(1, $perPage, PDO::PARAM_INT);
+$users_stmt->bindValue(2, $offset, PDO::PARAM_INT);
+$users_stmt->execute();
 $users = $users_stmt->fetchAll();
 ?>
 <!DOCTYPE html>
