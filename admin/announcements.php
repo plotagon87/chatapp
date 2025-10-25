@@ -1,5 +1,5 @@
 <?php
-require_once '../includes/config.php';
+require_once __DIR__ . '/../includes/config.php';
 requireLogin();
 
 if (!isAdmin()) {
@@ -35,30 +35,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_announcement']
 if (isset($_GET['delete'])) {
     $announcement_id = (int)$_GET['delete'];
     $stmt = $conn->prepare("DELETE FROM announcements WHERE announcement_id = ?");
-    $stmt->bind_param("i", $announcement_id);
-    if ($stmt->execute()) {
+    $ok = $stmt->execute([$announcement_id]);
+    if ($ok) {
         $success = 'Announcement deleted successfully';
         logActivity($_SESSION['user_id'], "Deleted announcement ID: $announcement_id");
     } else {
         $error = 'Failed to delete announcement';
     }
-    $stmt->close();
 }
 
 // Handle toggle active status
 if (isset($_GET['toggle'])) {
     $announcement_id = (int)$_GET['toggle'];
     $stmt = $conn->prepare("UPDATE announcements SET is_active = NOT is_active WHERE announcement_id = ?");
-    $stmt->bind_param("i", $announcement_id);
-    $stmt->execute();
-    $stmt->close();
+    $stmt->execute([$announcement_id]);
+    $success = 'Announcement status updated';
 }
 
-// Get all announcements
-$announcements = $conn->query("SELECT a.*, u.full_name as author_name 
+// Pagination for announcements (avoid loading everything at once)
+$perPage = 10;
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $perPage;
+
+$countStmt = $conn->query("SELECT COUNT(*) FROM announcements");
+$totalAnnouncements = (int) $countStmt->fetchColumn();
+
+$annStmt = $conn->prepare("SELECT a.*, u.full_name as author_name 
     FROM announcements a 
     JOIN users u ON a.created_by = u.user_id 
-    ORDER BY a.created_at DESC");
+    ORDER BY a.created_at DESC 
+    LIMIT ? OFFSET ?");
+$annStmt->bindValue(1, $perPage, PDO::PARAM_INT);
+$annStmt->bindValue(2, $offset, PDO::PARAM_INT);
+$annStmt->execute();
+$announcements = $annStmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -160,10 +170,10 @@ $announcements = $conn->query("SELECT a.*, u.full_name as author_name
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">All Announcements</h2>
                     <div class="space-y-4">
-                        <?php if ($announcements->num_rows === 0): ?>
+                        <?php if (count($announcements) === 0): ?>
                             <p class="text-gray-500 text-center py-8">No announcements yet</p>
                         <?php else: ?>
-                            <?php while($announcement = $announcements->fetch_assoc()): ?>
+                            <?php foreach($announcements as $announcement): ?>
                                 <div class="border border-gray-200 rounded-lg p-4 <?php echo !$announcement['is_active'] ? 'bg-gray-50 opacity-60' : ''; ?>">
                                     <div class="flex justify-between items-start mb-2">
                                         <div class="flex-1">
@@ -211,9 +221,18 @@ $announcements = $conn->query("SELECT a.*, u.full_name as author_name
                                         </div>
                                     </div>
                                 </div>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
+                    <!-- Pagination -->
+                    <?php if ($totalAnnouncements > $perPage): ?>
+                        <div class="mt-4 flex justify-center space-x-2">
+                            <?php $totalPages = (int) ceil($totalAnnouncements / $perPage); ?>
+                            <?php for ($p = 1; $p <= $totalPages; $p++): ?>
+                                <a href="?page=<?php echo $p; ?>" class="px-3 py-1 rounded <?php echo $p === $page ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700'; ?>"><?php echo $p; ?></a>
+                            <?php endfor; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

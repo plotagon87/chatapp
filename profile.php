@@ -6,7 +6,7 @@ $user = getUserData($_SESSION['user_id']);
 $success = '';
 $error = '';
 
-// Handle profile update
+/// Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $full_name = sanitize($_POST['full_name']);
     $email = sanitize($_POST['email']);
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            // Update profile
+            // Update profile - FIXED VERSION
             $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ? WHERE user_id = ?");
             
             if ($stmt->execute([$full_name, $email, $custom_status, $profile_picture, $_SESSION['user_id']])) {
@@ -65,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
 
 // Get user statistics
 $stats_query = "SELECT 

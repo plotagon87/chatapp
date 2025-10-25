@@ -19,8 +19,7 @@ define('DB_NAME', 'lan_chat_db');
 define('BASE_URL', 'http://' . $_SERVER['HTTP_HOST'] . '/chat-app/');
 define('UPLOAD_PATH', __DIR__ . '/../uploads/');
 define('MAX_FILE_SIZE', 10485760); // 10MB
-define('ALLOWED_FILE_TYPES', 'jpg,jpeg,png,pdf,doc,docx,txt,zip');
-$types = explode(',', ALLOWED_FILE_TYPES);
+define('ALLOWED_FILE_TYPES', ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt', 'zip']);
 
 // Create PDO database connection
 try {
@@ -59,7 +58,9 @@ function isLoggedIn() {
  * Check if user is admin
  */
 function isAdmin() {
-    return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+    if (!isset($_SESSION['user_id'])) return false;
+    $user = getUserData($_SESSION['user_id']);
+    return ($user && $user['role'] === 'admin');
 }
 
 /**

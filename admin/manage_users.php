@@ -1,5 +1,5 @@
 <?php
-require_once '../includes/config.php';
+require_once __DIR__ . '/../includes/config.php';
 requireLogin();
 
 if (!isAdmin()) {
@@ -15,14 +15,13 @@ if (isset($_GET['delete']) && !empty($_GET['delete'])) {
     $user_id = (int)$_GET['delete'];
     if ($user_id !== $_SESSION['user_id']) { // Can't delete yourself
         $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
-        $stmt->execute([$user_id]);
-        if ($stmt->execute()) {
+        $ok = $stmt->execute([$user_id]);
+        if ($ok) {
             $success = 'User deleted successfully';
             logActivity($_SESSION['user_id'], "Deleted user ID: $user_id");
         } else {
             $error = 'Failed to delete user';
         }
-        $stmt->close();
     } else {
         $error = 'You cannot delete your own account';
     }
@@ -34,18 +33,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_role'])) {
     $new_role = sanitize($_POST['role']);
     
     $stmt = $conn->prepare("UPDATE users SET role = ? WHERE user_id = ?");
-    $stmt->execute([$new_role, $user_id]);
-    if ($stmt->execute()) {
+    $ok = $stmt->execute([$new_role, $user_id]);
+    if ($ok) {
         $success = 'User role updated successfully';
         logActivity($_SESSION['user_id'], "Changed role for user ID: $user_id to $new_role");
     } else {
         $error = 'Failed to update role';
     }
-    $stmt->close();
 }
 
 // Get all users
-$users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
+$users_stmt = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
+$users = $users_stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -87,9 +86,9 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
 
         <!-- Users Table -->
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-xl font-bold text-gray-800">All Users</h2>
-                <span class="text-sm text-gray-600"><?php echo $users->num_rows; ?> total users</span>
+                <span class="text-sm text-gray-600"><?php echo count($users); ?> total users</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -104,7 +103,7 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        <?php while($user = $users->fetch_assoc()): ?>
+                        <?php foreach($users as $user): ?>
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
@@ -162,7 +161,7 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
                                     <?php endif; ?>
                                 </td>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>

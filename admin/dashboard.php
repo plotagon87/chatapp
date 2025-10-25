@@ -1,87 +1,51 @@
 <?php
-require_once 'includes/config.php';
+
+require_once __DIR__ . '/../includes/config.php';
 requireLogin();
+
+// Check if user is actually admin
+if (!isAdmin()) {
+    header('Location: ../dashboard.php');
+    exit();
+}
 
 // Get current user data
 $current_user = getUserData($_SESSION['user_id']);
 
-// Get all users except current user
-$users_stmt = $conn->prepare("SELECT user_id, username, full_name, profile_picture, status, last_seen 
-                FROM users 
-                WHERE user_id != ? 
-                ORDER BY status DESC, full_name ASC");
-$users_stmt->execute([$_SESSION['user_id']]);
-$users = $users_stmt->fetchAll();
+// Get admin statistics
+$stats_stmt = $conn->query("
+    SELECT 
+        (SELECT COUNT(*) FROM users) as total_users,
+        (SELECT COUNT(*) FROM users WHERE status = 'online') as online_users,
+        (SELECT COUNT(*) FROM messages WHERE DATE(created_at) = CURDATE()) as today_messages,
+    (SELECT COUNT(*) FROM announcements WHERE is_active = 1) as active_announcements,
+    (SELECT COUNT(*) FROM group_chats) as total_groups,
+        (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as new_users_week
+");
+$stats = $stats_stmt->fetch();
 
-// Get recent announcements
-$announcements_stmt = $conn->query("SELECT a.*, u.full_name as author 
-                        FROM announcements a 
-                        JOIN users u ON a.created_by = u.user_id 
-                        WHERE a.is_active = 1 
-                        ORDER BY a.created_at DESC 
-                        LIMIT 3");
-$announcements = $announcements_stmt->fetchAll();
-
-// Get unread message count
-$unread_stmt = $conn->prepare("SELECT COUNT(*) as unread_count 
-                 FROM messages 
-                 WHERE receiver_id = ? AND is_read = 0");
-$unread_stmt->execute([$_SESSION['user_id']]);
-$unread_count = $unread_stmt->fetch()['unread_count'];
+// Get recent activities
+$activities_stmt = $conn->query("
+    SELECT 'user' as type, username, full_name, created_at 
+    FROM users 
+    ORDER BY created_at DESC 
+    LIMIT 5
+");
+$recent_activities = $activities_stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - LAN Chat</title>
+    <title>Admin Dashboard - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        .chat-container {
-            height: calc(100vh - 120px);
+        .stat-card {
+            transition: transform 0.2s ease-in-out;
         }
-        .user-list {
-            height: calc(100vh - 200px);
-            overflow-y: auto;
-        }
-        .chat-messages {
-            height: calc(100% - 140px);
-            overflow-y: auto;
-        }
-        .online-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
-        }
-        .online { background-color: #10b981; }
-        .offline { background-color: #6b7280; }
-        .busy { background-color: #f59e0b; }
-        .away { background-color: #8b5cf6; }
-        
-        .message-bubble {
-            max-width: 70%;
-            word-wrap: break-word;
-        }
-        
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .stat-card:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -92,33 +56,22 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-4">
                     <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
-                    <span class="text-xl font-bold text-gray-800">LAN Chat</span>
+                    <span class="text-xl font-bold text-gray-800">LAN Chat Admin</span>
                 </div>
                 
                 <div class="flex items-center space-x-6">
-                    <!-- Notifications -->
-                    <div class="relative">
-                        <button class="text-gray-600 hover:text-purple-600 relative">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                            </svg>
-                            <?php if ($unread_count > 0): ?>
-                                <span class="notification-badge"><?php echo $unread_count; ?></span>
-                            <?php endif; ?>
-                        </button>
-                    </div>
-                    
                     <!-- User Menu -->
                     <div class="flex items-center space-x-3">
-                        <img src="uploads/profiles/<?php echo htmlspecialchars($current_user['profile_picture']); ?>" 
+                        <img src="../uploads/profiles/<?php echo htmlspecialchars($current_user['profile_picture']); ?>" 
                              alt="Profile" 
                              class="w-10 h-10 rounded-full border-2 border-purple-500"
-                             onerror="this.src='assets/images/default.png'">
+                             onerror="this.src='../assets/images/default.png'">
                         <div class="hidden md:block">
-                            <p class="text-sm font-semibold text-gray-800"><?php echo htmlspecialchars($current_user['full_name']); ?></p>
-                            <p class="text-xs text-gray-500"><?php echo ucfirst($current_user['role']); ?></p>
+                            <p class="text-sm font-semibold text-gray-800"><?php echo htmlspecialchars($current_user['full_name']); ?> (Admin)</p>
+                            <p class="text-xs text-gray-500">Administrator</p>
                         </div>
                         <div class="relative">
                             <button id="userMenuBtn" class="text-gray-600 hover:text-purple-600">
@@ -127,14 +80,11 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                 </svg>
                             </button>
                             <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50">
-                                <a href="profile.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Profile</a>
-                                <a href="settings.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Settings</a>
-                                <a href="groups.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Groups</a>
-                                <?php if (isAdmin()): ?>
-                                    <a href="admin/dashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Admin Panel</a>
-                                <?php endif; ?>
+                                <a href="../profile.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Profile</a>
+                                <a href="../settings.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Settings</a>
+                                <a href="../dashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">User Dashboard</a>
                                 <hr class="my-1">
-                                <a href="logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-50">Logout</a>
+                                <a href="../logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-50">Logout</a>
                             </div>
                         </div>
                     </div>
@@ -145,151 +95,175 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 py-6">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <!-- Sidebar - Users List -->
-            <div class="lg:col-span-1 bg-white rounded-lg shadow-lg p-4">
-                <div class="mb-4">
-                    <h2 class="text-lg font-bold text-gray-800 mb-3">Active Users</h2>
-                    <input 
-                        type="text" 
-                        id="searchUsers" 
-                        placeholder="Search users..." 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                    >
-                </div>
-                
-                <div class="user-list scrollbar-hide">
-                    <?php foreach($users as $user): ?>
-                        <div class="user-item p-3 hover:bg-gray-50 rounded-lg cursor-pointer mb-2 border border-gray-100" 
-                             data-user-id="<?php echo $user['user_id']; ?>"
-                             data-username="<?php echo htmlspecialchars($user['username']); ?>"
-                             data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>">
-                            <div class="flex items-center space-x-3">
-                                <div class="relative">
-                                    <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
-                                         alt="<?php echo htmlspecialchars($user['full_name']); ?>" 
-                                         class="w-12 h-12 rounded-full"
-                                         onerror="this.src='assets/images/default.png'">
-                                    <span class="online-dot <?php echo $user['status']; ?> absolute bottom-0 right-0 border-2 border-white"></span>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="font-semibold text-sm text-gray-800"><?php echo htmlspecialchars($user['full_name']); ?></p>
-                                    <p class="text-xs text-gray-500">
-                                        <?php 
-                                        if ($user['status'] === 'online') {
-                                            echo 'Online';
-                                        } else {
-                                            echo timeAgo($user['last_seen']);
-                                        }
-                                        ?>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+        <!-- Welcome Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+            <p class="text-gray-600">Welcome back, <?php echo htmlspecialchars($current_user['full_name']); ?></p>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Total Users -->
+            <div class="stat-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Users</p>
+                        <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['total_users']; ?></p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Main Chat Area -->
-            <div class="lg:col-span-3 space-y-6">
-                <!-- Announcements -->
-                <?php if (count($announcements) > 0): ?>
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-4 text-white">
-                        <h3 class="font-bold text-lg mb-3 flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
-                            </svg>
-                            Announcements
-                        </h3>
-                        <?php foreach($announcements as $announcement): ?>
-                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2">
-                                <p class="font-semibold"><?php echo htmlspecialchars($announcement['title']); ?></p>
-                                <p class="text-sm opacity-90"><?php echo htmlspecialchars($announcement['content']); ?></p>
-                                <p class="text-xs opacity-75 mt-1">By <?php echo htmlspecialchars($announcement['author']); ?> • <?php echo timeAgo($announcement['created_at']); ?></p>
-                            </div>
-                        <?php endforeach; ?>
+            <!-- Online Users -->
+            <div class="stat-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/>
+                        </svg>
                     </div>
-                <?php endif; ?>
-
-                <!-- Chat Window -->
-                <div class="bg-white rounded-lg shadow-lg chat-container">
-                    <!-- Chat Header -->
-                    <div id="chatHeader" class="border-b border-gray-200 p-4 bg-gray-50 rounded-t-lg">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="text-gray-500 flex items-center">
-                                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                                    </svg>
-                                    <span>Select a user to start chatting</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Messages Area -->
-                    <div id="chatMessages" class="chat-messages p-4 bg-gray-50">
-                        <div class="flex items-center justify-center h-full text-gray-400">
-                            <div class="text-center">
-                                <svg class="w-20 h-20 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                                </svg>
-                                <p class="text-lg">No conversation selected</p>
-                                <p class="text-sm">Choose a user from the list to start messaging</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Message Input -->
-                    <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
-                        <form id="messageForm" class="flex items-center space-x-3">
-                            <input type="hidden" id="receiverId" value="">
-                            
-                            <!-- File Upload Button -->
-                            <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                                </svg>
-                            </button>
-                            <input type="file" id="fileInput" class="hidden">
-                            
-                            <!-- Emoji Button -->
-                            <button type="button" id="emojiBtn" class="text-gray-500 hover:text-purple-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </button>
-                            
-                            <!-- Message Input -->
-                            <input 
-                                type="text" 
-                                id="messageInput" 
-                                placeholder="Type a message..." 
-                                class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                autocomplete="off"
-                            >
-                            
-                            <!-- Send Button -->
-                            <button 
-                                type="submit" 
-                                class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                </svg>
-                            </button>
-                        </form>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Online Users</p>
+                        <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['online_users']; ?></p>
                     </div>
                 </div>
+            </div>
+
+            <!-- Today's Messages -->
+            <div class="stat-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Today's Messages</p>
+                        <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['today_messages']; ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Announcements -->
+            <div class="stat-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Active Announcements</p>
+                        <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['active_announcements']; ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Groups -->
+            <div class="stat-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Groups</p>
+                        <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['total_groups']; ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Users (Week) -->
+            <div class="stat-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-pink-100 text-pink-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">New Users (Week)</p>
+                        <p class="text-2xl font-semibold text-gray-900"><?php echo $stats['new_users_week']; ?></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <a href="manage_users.php" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600 inline-block">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mt-3">User Management</h3>
+                <p class="text-sm text-gray-600">Manage users & permissions</p>
+            </a>
+
+            <a href="announcements.php" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 inline-block">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mt-3">Announcements</h3>
+                <p class="text-sm text-gray-600">Create & manage announcements</p>
+            </a>
+
+            <a href="system_logs.php" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600 inline-block">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mt-3">System Logs</h3>
+                <p class="text-sm text-gray-600">View system activity</p>
+            </a>
+
+            <a href="settings.php" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow text-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600 inline-block">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mt-3">System Settings</h3>
+                <p class="text-sm text-gray-600">Configure system options</p>
+            </a>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
+            <div class="space-y-3">
+                <?php if (count($recent_activities) > 0): ?>
+                    <?php foreach($recent_activities as $activity): ?>
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="p-2 rounded-full bg-blue-100 text-blue-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-800">New user registered: <?php echo htmlspecialchars($activity['full_name']); ?></p>
+                                <p class="text-xs text-gray-500"><?php echo timeAgo($activity['created_at']); ?></p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p class="text-gray-500 text-center py-4">No recent activity</p>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
     <script>
-        // Global variables
-        let currentChatUser = null;
-        let messageCheckInterval = null;
-        const currentUserId = <?php echo $_SESSION['user_id']; ?>;
-
         // User menu toggle
         document.getElementById('userMenuBtn').addEventListener('click', function() {
             document.getElementById('userMenu').classList.toggle('hidden');
@@ -301,191 +275,6 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 document.getElementById('userMenu').classList.add('hidden');
             }
         });
-
-        // User item click
-        document.querySelectorAll('.user-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const userId = this.dataset.userId;
-                const fullName = this.dataset.fullname;
-                const username = this.dataset.username;
-                
-                openChat(userId, fullName, username);
-            });
-        });
-
-        // Search users
-        document.getElementById('searchUsers').addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            document.querySelectorAll('.user-item').forEach(item => {
-                const fullName = item.dataset.fullname.toLowerCase();
-                const username = item.dataset.username.toLowerCase();
-                
-                if (fullName.includes(searchTerm) || username.includes(searchTerm)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        });
-
-        // Open chat with user
-        function openChat(userId, fullName, username) {
-            currentChatUser = userId;
-            
-            // Update chat header
-            document.getElementById('chatHeader').innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <img src="uploads/profiles/default.png" 
-                             alt="${fullName}" 
-                             class="w-10 h-10 rounded-full"
-                             onerror="this.src='assets/images/default.png'">
-                        <div>
-                            <p class="font-semibold text-gray-800">${fullName}</p>
-                            <p class="text-xs text-gray-500">@${username}</p>
-                        </div>
-                    </div>
-                    <button onclick="clearChat()" class="text-gray-500 hover:text-red-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            `;
-            
-            // Show message input
-            document.getElementById('messageInputArea').classList.remove('hidden');
-            document.getElementById('receiverId').value = userId;
-            
-            // Load messages
-            loadMessages(userId);
-            
-            // Start polling for new messages
-            if (messageCheckInterval) {
-                clearInterval(messageCheckInterval);
-            }
-            messageCheckInterval = setInterval(() => loadMessages(userId), 3000);
-        }
-
-        // Load messages
-        function loadMessages(userId) {
-            fetch(`chat/get_messages.php?user_id=${userId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayMessages(data.messages);
-                    }
-                })
-                .catch(error => console.error('Error loading messages:', error));
-        }
-
-        // Display messages
-        function displayMessages(messages) {
-            const chatMessages = document.getElementById('chatMessages');
-            
-            if (messages.length === 0) {
-                chatMessages.innerHTML = `
-                    <div class="flex items-center justify-center h-full text-gray-400">
-                        <div class="text-center">
-                            <p class="text-lg">No messages yet</p>
-                            <p class="text-sm">Start the conversation!</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '';
-            messages.forEach(msg => {
-                const isSent = msg.sender_id == currentUserId;
-                const alignClass = isSent ? 'justify-end' : 'justify-start';
-                const bgClass = isSent ? 'bg-purple-600 text-white' : 'bg-white text-gray-800';
-                
-                html += `
-                    <div class="flex ${alignClass} mb-4">
-                        <div class="message-bubble ${bgClass} rounded-lg p-3 shadow">
-                            <p>${escapeHtml(msg.message_text)}</p>
-                            <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1">
-                                ${formatTime(msg.created_at)}
-                                ${isSent && msg.is_read ? '✓✓' : isSent ? '✓' : ''}
-                            </p>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            chatMessages.innerHTML = html;
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        // Send message
-        document.getElementById('messageForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const messageInput = document.getElementById('messageInput');
-            const receiverId = document.getElementById('receiverId').value;
-            const messageText = messageInput.value.trim();
-            
-            if (!messageText || !receiverId) return;
-            
-            const formData = new FormData();
-            formData.append('receiver_id', receiverId);
-            formData.append('message_text', messageText);
-            
-            fetch('chat/send_message.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    messageInput.value = '';
-                    loadMessages(receiverId);
-                }
-            })
-            .catch(error => console.error('Error sending message:', error));
-        });
-
-        // Helper functions
-        function clearChat() {
-            currentChatUser = null;
-            if (messageCheckInterval) {
-                clearInterval(messageCheckInterval);
-            }
-            document.getElementById('chatMessages').innerHTML = `
-                <div class="flex items-center justify-center h-full text-gray-400">
-                    <div class="text-center">
-                        <svg class="w-20 h-20 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                        </svg>
-                        <p class="text-lg">No conversation selected</p>
-                    </div>
-                </div>
-            `;
-            document.getElementById('messageInputArea').classList.add('hidden');
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function formatTime(timestamp) {
-            const date = new Date(timestamp);
-            const now = new Date();
-            const diff = now - date;
-            
-            if (diff < 60000) return 'Just now';
-            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-            if (diff < 86400000) return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
-
-        // Update user status every 30 seconds
-        setInterval(() => {
-            fetch('api/update_status.php', { method: 'POST' });
-        }, 30000);
     </script>
 </body>
 </html>
