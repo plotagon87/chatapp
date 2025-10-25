@@ -5,8 +5,9 @@ let messageCheckInterval = null;
 let isSending = false;
 
 
-// CSRF token (you need to implement this in PHP)
-const csrfToken = '<?php echo $_SESSION["csrf_token"] ?? ""; ?>';
+// CSRF token and base URL come from the page (dashboard.php). Provide safe fallbacks.
+const csrfToken = (typeof csrfToken !== 'undefined') ? csrfToken : (window.csrfToken || '');
+const base = (typeof baseUrl !== 'undefined') ? baseUrl.replace(/\/$/, '') : (window.baseUrl ? window.baseUrl.replace(/\/$/, '') : '/chatapp');
 
 // User menu toggle
 document.getElementById('userMenuBtn')?.addEventListener('click', function() {
