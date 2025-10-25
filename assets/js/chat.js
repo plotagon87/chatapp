@@ -329,7 +329,6 @@ class ChatApp {
 
     init() {
         this.bindEvents();
-        this.startStatusUpdates();
         console.log('Chat app initialized');
     }
 
@@ -340,17 +339,11 @@ class ChatApp {
         // User interactions
         this.bindUserClicks();
         
-        // Search functionality
-        this.bindSearch();
-        
-        // Message sending
+        // Message sending (guarded)
         this.bindMessageSending();
-        
-        // File upload
+
+        // File upload (guarded)
         this.bindFileUpload();
-        
-        // Page visibility
-        this.bindPageVisibility();
     }
 
     bindUserMenu() {
@@ -390,7 +383,86 @@ class ChatApp {
         const username = userItem.dataset.username;
         const profilePicture = userItem.dataset.profilePicture || 'default.png';
         
-        this.openChat(userId, fullName, username, profilePicture);
+        // call the global function which is defined in this file
+        if (typeof window !== 'undefined' && typeof window.openChat === 'function') {
+            window.openChat(userId, fullName, username, profilePicture);
+        } else if (typeof openChat === 'function') {
+            openChat(userId, fullName, username, profilePicture);
+        }
+    }
+
+    bindMessageSending() {
+        const messageForm = document.getElementById('messageForm');
+        if (!messageForm) return;
+
+        if (messageForm.__chatBindingAttached) return;
+        messageForm.__chatBindingAttached = true;
+
+        messageForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (isSending) return;
+
+            const messageInput = document.getElementById('messageInput');
+            const receiverEl = document.getElementById('receiverId');
+            const receiverId = receiverEl ? receiverEl.value : null;
+            const messageText = messageInput ? messageInput.value.trim() : '';
+
+            if (!messageText || !receiverId) return;
+
+            isSending = true;
+            const sendButton = this.querySelector('button[type="submit"]');
+            const originalHtml = sendButton ? sendButton.innerHTML : '';
+            if (sendButton) {
+                sendButton.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                sendButton.disabled = true;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('receiver_id', receiverId);
+                formData.append('message_text', messageText);
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch(`${base}/chat/send_message.php`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (messageInput) messageInput.value = '';
+                    if (typeof loadMessages === 'function') loadMessages(receiverId);
+                } else {
+                    showNotification(data.message || 'Failed to send message', 'error');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showNotification('Network error: Failed to send message', 'error');
+            } finally {
+                if (sendButton) {
+                    sendButton.innerHTML = originalHtml;
+                    sendButton.disabled = false;
+                }
+                isSending = false;
+            }
+        });
+    }
+
+    bindFileUpload() {
+        const fileUploadBtn = document.getElementById('fileUploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        if (!fileUploadBtn || !fileInput) return;
+
+        if (fileInput.__chatBindingAttached) return;
+        fileInput.__chatBindingAttached = true;
+
+        fileUploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', function () {
+            if (this.files.length > 0 && typeof uploadFile === 'function') {
+                uploadFile(this.files[0]);
+            }
+        });
     }
 
     // ... include all the other methods from the improved code
