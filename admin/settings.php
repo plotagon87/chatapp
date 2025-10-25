@@ -85,13 +85,13 @@ $system_stats = $conn->query("
 ")->fetch();
 
 // Get recent system activity
-$recent_activity = $conn->query("
-    SELECT action, created_at 
-    FROM activity_log 
-    WHERE user_id IS NULL OR user_id != ? 
-    ORDER BY created_at DESC 
-    LIMIT 10
-", [$_SESSION['user_id']])->fetchAll();
+$stmt = $conn->prepare("SELECT action, created_at
+    FROM activity_log
+    WHERE user_id IS NULL OR user_id != ?
+    ORDER BY created_at DESC
+    LIMIT 10");
+$stmt->execute([$_SESSION['user_id']]);
+$recent_activity = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
