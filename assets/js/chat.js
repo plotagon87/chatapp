@@ -108,7 +108,7 @@ function openChat(userId, fullName, username, profilePicture) {
 // Load messages with error handling
 async function loadMessages(userId) {
     try {
-        const response = await fetch(`/chatapp/chat/get_messages.php?user_id=${userId}&t=${Date.now()}`);
+    const response = await fetch(`${base}/chat/get_messages.php?user_id=${userId}&t=${Date.now()}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -225,7 +225,7 @@ document.getElementById('messageForm')?.addEventListener('submit', async functio
         formData.append('message_text', messageText);
         formData.append('csrf_token', csrfToken); // Add CSRF protection
         
-        const response = await fetch('/chatapp/chat/send_message.php', {
+    const response = await fetch(`${base}/chat/send_message.php`, {
             method: 'POST',
             body: formData
         });
@@ -360,7 +360,7 @@ function formatDate(timestamp) {
 
 // Update user status every 30 seconds
 setInterval(() => {
-    fetch('/chatapp/api/update_status.php', { method: 'POST' }).catch(() => {});
+    fetch(`${base}/api/update_status.php`, { method: 'POST' }).catch(() => {});
 }, 30000);
 
 // Handle page visibility to reduce polling when tab is not active
