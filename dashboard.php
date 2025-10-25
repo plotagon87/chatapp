@@ -36,11 +36,16 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Inline JS vars (make them JSON encoded to be safe) -->
     <script>
-        const currentUserId = <?php echo $_SESSION['user_id']; ?>;
-        const csrfToken = '<?php echo $_SESSION["csrf_token"] ?? ""; ?>';
+        const currentUserId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
+        const csrfToken = <?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?>;
+        // baseUrl is the app root (no trailing slash)
+        const baseUrl = <?php echo json_encode(rtrim((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/'), '/')); ?>;
     </script>
-    <script src="js/chat.js" defer></script>
+
+    <!-- Before closing </body> -->
+    <script src="assets/js/chat.js?v=<?php echo time(); ?>" defer></script>
     <style>
         .chat-container {
             height: calc(100vh - 120px);
@@ -165,10 +170,11 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 
                 <div class="user-list scrollbar-hide">
                     <?php foreach($users as $user): ?>
-                        <div class="user-item p-3 hover:bg-gray-50 rounded-lg cursor-pointer mb-2 border border-gray-100" 
-                             data-user-id="<?php echo $user['user_id']; ?>"
-                             data-username="<?php echo htmlspecialchars($user['username']); ?>"
-                             data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>">
+                        <div class="user-item ..." 
+                            data-user-id="<?php echo $user['user_id']; ?>"
+                            data-username="<?php echo htmlspecialchars($user['username']); ?>"
+                            data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>"
+                            data-profile-picture="<?php echo htmlspecialchars($user['profile_picture']); ?>">
                             <div class="flex items-center space-x-3">
                                 <div class="relative">
                                     <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 

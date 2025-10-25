@@ -9,6 +9,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Ensure a CSRF token is available for forms and XHR
+if (empty($_SESSION['csrf_token'])) {
+    try {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        // fallback
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(mt_rand());
+        }
+    }
+}
+
 // Database Configuration
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
@@ -16,7 +28,9 @@ define('DB_PASS', '');
 define('DB_NAME', 'lan_chat_db');
 
 // Application Configuration
-define('BASE_URL', 'http://' . $_SERVER['HTTP_HOST'] . '/chat-app/');
+// Construct BASE_URL dynamically from the current request
+$basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+define('BASE_URL', (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . ($basePath === '' || $basePath === '/' ? '' : $basePath) . '/');
 define('UPLOAD_PATH', __DIR__ . '/../uploads/');
 define('MAX_FILE_SIZE', 10485760); // 10MB
 define('ALLOWED_FILE_TYPES', ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt', 'zip']);

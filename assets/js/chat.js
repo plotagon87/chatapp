@@ -1,3 +1,4 @@
+console.log('chat.js loaded successfully');
 // Global variables
 let currentChatUser = null;
 let messageCheckInterval = null;
