@@ -324,6 +324,8 @@ class ChatApp {
         this.currentChatUser = null;
         this.messageCheckInterval = null;
         this.isSending = false;
+        this.currentUserId = (typeof currentUserId !== 'undefined') ? currentUserId : null;
+        this.base = (typeof base !== 'undefined') ? base : (window.baseUrl ? window.baseUrl.replace(/\/$/, '') : '');
         this.init();
     }
 
@@ -384,11 +386,219 @@ class ChatApp {
         const profilePicture = userItem.dataset.profilePicture || 'default.png';
         
         // call the global function which is defined in this file
-        if (typeof window !== 'undefined' && typeof window.openChat === 'function') {
-            window.openChat(userId, fullName, username, profilePicture);
-        } else if (typeof openChat === 'function') {
-            openChat(userId, fullName, username, profilePicture);
+        this.openChat(userId, fullName, username, profilePicture);
+    }
+
+    // Open chat with user
+    openChat(userId, fullName, username, profilePicture) {
+        if (this.currentChatUser === userId) return;
+
+        this.currentChatUser = userId;
+
+        // Clear previous interval
+        if (this.messageCheckInterval) {
+            clearInterval(this.messageCheckInterval);
+            this.messageCheckInterval = null;
         }
+
+        // Update chat header
+        const chatHeader = document.getElementById('chatHeader');
+        if (chatHeader) {
+            chatHeader.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <img src="${this.base}/uploads/profiles/${profilePicture}" 
+                             alt="${fullName}" 
+                             class="w-10 h-10 rounded-full"
+                             onerror="this.src='${this.base}/assets/images/default.png'">
+                        <div>
+                            <p class="font-semibold text-gray-800">${fullName}</p>
+                            <p class="text-xs text-gray-500">@${username}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span id="typingIndicator" class="text-xs text-gray-500 hidden">typing...</span>
+                        <button onclick="window.chatApp.clearChat()" class="text-gray-500 hover:text-red-600 transition duration-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Show message input
+        const messageInputArea = document.getElementById('messageInputArea');
+        const receiverEl = document.getElementById('receiverId');
+        if (messageInputArea) messageInputArea.classList.remove('hidden');
+        if (receiverEl) receiverEl.value = userId;
+
+        // Focus on input
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) messageInput.focus();
+
+        // Load messages
+        this.loadMessages(userId);
+
+        // Start polling for new messages
+        this.messageCheckInterval = setInterval(() => {
+            if (this.currentChatUser === userId) {
+                this.loadMessages(userId);
+            }
+        }, 3000);
+    }
+
+    // Load messages with error handling
+    async loadMessages(userId) {
+        try {
+            const response = await fetch(`${this.base}/chat/get_messages.php?user_id=${userId}&t=${Date.now()}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.displayMessages(data.messages);
+            } else {
+                showNotification('Failed to load messages', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    // Display messages
+    displayMessages(messages) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+
+        if (!Array.isArray(messages) || messages.length === 0) {
+            chatMessages.innerHTML = `
+                <div class="flex items-center justify-center h-full text-gray-400">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <p class="text-lg font-medium">No messages yet</p>
+                        <p class="text-sm">Start the conversation!</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        let lastDate = null;
+
+        messages.forEach(msg => {
+            const isSent = msg.sender_id == this.currentUserId;
+            const messageDate = new Date(msg.created_at).toDateString();
+
+            if (lastDate !== messageDate) {
+                lastDate = messageDate;
+                html += `
+                    <div class="flex justify-center my-4">
+                        <span class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+                            ${this.formatDate(msg.created_at)}
+                        </span>
+                    </div>
+                `;
+            }
+
+            const alignClass = isSent ? 'justify-end' : 'justify-start';
+            const bgClass = isSent ? 'bg-purple-600 text-white' : 'bg-white text-gray-800 border border-gray-200';
+            const readStatus = isSent ? (msg.is_read ? '✓✓ Read' : '✓ Delivered') : '';
+
+            html += `
+                <div class="flex ${alignClass} mb-3">
+                    <div class="message-bubble ${bgClass} rounded-2xl p-3 shadow-sm max-w-xs lg:max-w-md">
+                        ${msg.message_text ? `<p class="break-words">${this.escapeHtml(msg.message_text)}</p>` : ''}
+                        ${msg.file_path ? `<div class="mt-2"><a href="${msg.file_path}" target="_blank" class="text-blue-400 hover:underline">📎 Attachment</a></div>` : ''}
+                        <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1 flex justify-between items-center">
+                            <span>${this.formatTime(msg.created_at)}</span>
+                            ${readStatus ? `<span class="ml-2">${readStatus}</span>` : ''}
+                        </p>
+                    </div>
+                </div>
+            `;
+        });
+
+        chatMessages.innerHTML = html;
+
+        setTimeout(() => {
+            chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+        }, 100);
+    }
+
+    clearChat() {
+        this.currentChatUser = null;
+        if (this.messageCheckInterval) {
+            clearInterval(this.messageCheckInterval);
+            this.messageCheckInterval = null;
+        }
+
+        const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages) {
+            chatMessages.innerHTML = `
+                <div class="flex items-center justify-center h-full text-gray-400">
+                    <div class="text-center">
+                        <svg class="w-20 h-20 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        <p class="text-lg font-medium">No conversation selected</p>
+                        <p class="text-sm">Choose a user from the list to start messaging</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        const messageInputArea = document.getElementById('messageInputArea');
+        const chatHeader = document.getElementById('chatHeader');
+        if (messageInputArea) messageInputArea.classList.add('hidden');
+        if (chatHeader) chatHeader.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="text-gray-500 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    <span>Select a user to start chatting</span>
+                </div>
+            </div>
+        `;
+    }
+
+    uploadFile(file) {
+        showNotification('File upload functionality not implemented yet', 'warning');
+    }
+
+    // Helpers
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+        if (diff < 86400000) return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    formatDate(timestamp) {
+        const date = new Date(timestamp);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (date.toDateString() === today.toDateString()) return 'Today';
+        if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+        return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     }
 
     bindMessageSending() {
@@ -474,8 +684,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if required global variables exist
     if (typeof currentUserId === 'undefined') {
         console.error('currentUserId is not defined. Make sure to include the inline script in dashboard.php');
-        return;
+        // still create the app but without currentUserId
+        window.currentUserId = null;
     }
 
     window.chatApp = new ChatApp();
+
+    // Expose global compatibility wrappers (so older code that calls openChat(), loadMessages() still works)
+    window.openChat = function(userId, fullName, username, profilePicture) {
+        if (window.chatApp && typeof window.chatApp.openChat === 'function') {
+            window.chatApp.openChat(userId, fullName, username, profilePicture);
+        }
+    };
+
+    window.loadMessages = function(userId) {
+        if (window.chatApp && typeof window.chatApp.loadMessages === 'function') {
+            window.chatApp.loadMessages(userId);
+        }
+    };
+
+    window.clearChat = function() {
+        if (window.chatApp && typeof window.chatApp.clearChat === 'function') {
+            window.chatApp.clearChat();
+        }
+    };
 });
