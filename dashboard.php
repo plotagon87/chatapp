@@ -37,11 +37,12 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <title>Dashboard - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Inline JS vars (make them JSON encoded to be safe) -->
+    <!-- In the <head> section of dashboard.php -->
     <script>
-        const currentUserId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
-        const csrfToken = <?php echo json_encode($_SESSION['csrf_token'] ?? ''); ?>;
-        // baseUrl is the app root (no trailing slash)
-        const baseUrl = <?php echo json_encode(rtrim((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/'), '/')); ?>;
+        // Pass PHP variables to JavaScript
+        const currentUserId = <?php echo $_SESSION['user_id']; ?>;
+        const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
+        const baseUrl = '<?php echo BASE_URL; ?>';
     </script>
 
     <!-- Before closing </body> -->
@@ -170,12 +171,11 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 
                 <div class="user-list scrollbar-hide">
                     <?php foreach($users as $user): ?>
-                        <div class="user-item ..." 
+                        <div class="user-item p-3 hover:bg-gray-50 rounded-lg cursor-pointer mb-2 border border-gray-100" 
                             data-user-id="<?php echo $user['user_id']; ?>"
                             data-username="<?php echo htmlspecialchars($user['username']); ?>"
                             data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>"
-                            data-profile-picture="<?php echo htmlspecialchars($user['profile_picture']); ?>">
-                            <div class="flex items-center space-x-3">
+                            data-profile-picture="<?php echo htmlspecialchars($user['profile_picture']); ?>">                            <div class="flex items-center space-x-3">
                                 <div class="relative">
                                     <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
                                          alt="<?php echo htmlspecialchars($user['full_name']); ?>" 
@@ -294,6 +294,30 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             </div>
         </div>
     </div>
+    <script src="assets/js/chat.js"></script>
+            <!-- Debug Script - Add before closing </body> -->
+        <script>
+        console.log("=== DEBUG INFO ===");
+        console.log("currentUserId:", currentUserId);
+        console.log("baseUrl:", baseUrl);
+        console.log("csrfToken:", csrfToken ? "Set" : "Not set");
+        console.log("User items:", document.querySelectorAll('.user-item').length);
+        console.log("chatApp object:", typeof window.chatApp);
+        console.log("=== END DEBUG ===");
 
+        // Test if basic JavaScript works
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM fully loaded");
+            
+            // Test user click manually
+            const testUser = document.querySelector('.user-item');
+            if (testUser) {
+                testUser.addEventListener('click', function() {
+                    console.log("User clicked - JavaScript is working!");
+                    console.log("User ID:", this.dataset.userId);
+                });
+            }
+        });
+        </script>
 </body>
 </html>

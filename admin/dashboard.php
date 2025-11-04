@@ -38,6 +38,12 @@ $recent_activities = $activities_stmt->fetchAll();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LAN Chat</title>
+        <script>
+            // Pass PHP variables to JavaScript
+            const currentUserId = <?php echo $_SESSION['user_id']; ?>;
+            const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
+            const baseUrl = '<?php echo BASE_URL; ?>';
+        </script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
         .stat-card {
@@ -294,5 +300,6 @@ $recent_activities = $activities_stmt->fetchAll();
             });
         });
     </script>
+    <script src="../assets/js/chat.js"></script>
 </body>
 </html>
