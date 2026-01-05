@@ -38,15 +38,26 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Inline JS vars (make them JSON encoded to be safe) -->
     <!-- In the <head> section of dashboard.php -->
-    <script>
-        // Pass PHP variables to JavaScript
-        const currentUserId = <?php echo $_SESSION['user_id']; ?>;
-        const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
-        const baseUrl = '<?php echo BASE_URL; ?>';
-    </script>
-
-    <!-- Before closing </body> -->
-    <script src="assets/js/chat.js?v=<?php echo time(); ?>" defer></script>
+        <script>
+            // Pass PHP variables to JavaScript - ROBUST VERSION
+            const currentUserId = <?php echo $_SESSION['user_id'] ?? 'null'; ?>;
+            const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
+            const baseUrl = '<?php 
+                if (defined('BASE_URL')) {
+                    echo BASE_URL;
+                } else {
+                    // Fallback if BASE_URL is not defined
+                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+                    $host = $_SERVER['HTTP_HOST'];
+                    $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+                    echo $protocol . '://' . $host . $path . '/';
+                }
+            ?>';
+            
+            // Debug: Log the baseUrl to console
+            console.log('Base URL:', baseUrl);
+        </script>
+    
     <style>
         .chat-container {
             height: calc(100vh - 120px);
@@ -170,34 +181,41 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 </div>
                 
                 <div class="user-list scrollbar-hide">
-                    <?php foreach($users as $user): ?>
-                        <div class="user-item p-3 hover:bg-gray-50 rounded-lg cursor-pointer mb-2 border border-gray-100" 
-                            data-user-id="<?php echo $user['user_id']; ?>"
-                            data-username="<?php echo htmlspecialchars($user['username']); ?>"
-                            data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>"
-                            data-profile-picture="<?php echo htmlspecialchars($user['profile_picture']); ?>">                            <div class="flex items-center space-x-3">
-                                <div class="relative">
-                                    <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
-                                         alt="<?php echo htmlspecialchars($user['full_name']); ?>" 
-                                         class="w-12 h-12 rounded-full"
-                                         onerror="this.src='assets/images/default.png'">
-                                    <span class="online-dot <?php echo $user['status']; ?> absolute bottom-0 right-0 border-2 border-white"></span>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="font-semibold text-sm text-gray-800"><?php echo htmlspecialchars($user['full_name']); ?></p>
-                                    <p class="text-xs text-gray-500">
-                                        <?php 
-                                        if ($user['status'] === 'online') {
-                                            echo 'Online';
-                                        } else {
-                                            echo timeAgo($user['last_seen']);
-                                        }
+                                            
+                        <?php foreach($users as $user): ?>
+                            <div class="user-item p-3 hover:bg-gray-50 rounded-lg cursor-pointer mb-2 border border-gray-100" 
+                                data-user-id="<?php echo $user['user_id']; ?>"
+                                data-username="<?php echo htmlspecialchars($user['username']); ?>"
+                                data-fullname="<?php echo htmlspecialchars($user['full_name']); ?>"
+                                data-profile-picture="<?php echo htmlspecialchars($user['profile_picture']); ?>">
+                                <div class="flex items-center space-x-3">
+                                    <div class="relative">
+                                        <?php
+                                        $profile_pic = !empty($user['profile_picture']) ? $user['profile_picture'] : 'default.png';
+                                        $profile_path = "uploads/profiles/" . $profile_pic;
+                                        $default_path = "assets/images/default.png";
                                         ?>
-                                    </p>
+                                        <img src="<?php echo $profile_path; ?>" 
+                                            alt="<?php echo htmlspecialchars($user['full_name']); ?>" 
+                                            class="w-12 h-12 rounded-full"
+                                            onerror="if(this.src != '<?php echo $default_path; ?>') this.src='<?php echo $default_path; ?>';">
+                                        <span class="online-dot <?php echo $user['status']; ?> absolute bottom-0 right-0 border-2 border-white"></span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-sm text-gray-800"><?php echo htmlspecialchars($user['full_name']); ?></p>
+                                        <p class="text-xs text-gray-500">
+                                            <?php 
+                                            if ($user['status'] === 'online') {
+                                                echo 'Online';
+                                            } else {
+                                                echo timeAgo($user['last_seen']);
+                                            }
+                                            ?>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
                 </div>
             </div>
 
@@ -252,72 +270,54 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                     </div>
 
                     <!-- Message Input -->
-                    <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
-                        <form id="messageForm" class="flex items-center space-x-3">
-                            <input type="hidden" id="receiverId" value="">
-                            
-                            <!-- File Upload Button -->
-                            <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                                </svg>
-                            </button>
-                            <input type="file" id="fileInput" class="hidden">
-                            
-                            <!-- Emoji Button -->
-                            <button type="button" id="emojiBtn" class="text-gray-500 hover:text-purple-600">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </button>
-                            
-                            <!-- Message Input -->
-                            <input 
-                                type="text" 
-                                id="messageInput" 
-                                placeholder="Type a message..." 
-                                class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                autocomplete="off"
-                            >
-                            
-                            <!-- Send Button -->
-                            <button 
-                                type="submit" 
-                                class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                </svg>
-                            </button>
-                        </form>
-                    </div>
+                    
+                            <!-- In dashboard.php, simplify the message input -->
+                            <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
+                                <form id="messageForm" class="flex items-center space-x-3">
+                                    <input type="hidden" id="receiverId" value="">
+                                    
+                                    <!-- Temporarily disable file upload -->
+                                    <!--
+                                    <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                        </svg>
+                                    </button>
+                                    <input type="file" id="fileInput" class="hidden">
+                                    -->
+                                    
+                                    <!-- Temporarily disable emoji -->
+                                    <!--
+                                    <button type="button" id="emojiBtn" class="text-gray-500 hover:text-purple-600">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </button>
+                                    -->
+                                    
+                                    <!-- Message Input -->
+                                    <input 
+                                        type="text" 
+                                        id="messageInput" 
+                                        placeholder="Type a message..." 
+                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        autocomplete="off"
+                                    >
+                                    
+                                    <!-- Send Button -->
+                                    <button 
+                                        type="submit" 
+                                        class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
                 </div>
             </div>
         </div>
     </div>
-    <script src="assets/js/chat.js"></script>
-            <!-- Debug Script - Add before closing </body> -->
-        <script>
-        console.log("=== DEBUG INFO ===");
-        console.log("currentUserId:", currentUserId);
-        console.log("baseUrl:", baseUrl);
-        console.log("csrfToken:", csrfToken ? "Set" : "Not set");
-        console.log("User items:", document.querySelectorAll('.user-item').length);
-        console.log("chatApp object:", typeof window.chatApp);
-        console.log("=== END DEBUG ===");
-
-        // Test if basic JavaScript works
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM fully loaded");
-            
-            // Test user click manually
-            const testUser = document.querySelector('.user-item');
-            if (testUser) {
-                testUser.addEventListener('click', function() {
-                    console.log("User clicked - JavaScript is working!");
-                    console.log("User ID:", this.dataset.userId);
-                });
-            }
-        });
-        </script>
+    <script src="assets/js/chat.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

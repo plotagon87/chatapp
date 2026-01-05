@@ -1,73 +1,61 @@
-// assets/js/chat.js - Improved version with better error handling
+// assets/js/chat.js - FIXED VERSION WITH MESSAGE ALIGNMENT AND TIME
+console.log('🔧 chat.js loading...');
 
-console.log('chat.js loaded - checking initialization...');
+// Emergency fallback for baseUrl
+if (typeof window.baseUrl === 'undefined' || !window.baseUrl) {
+    console.warn('⚠️ baseUrl is undefined, using relative paths');
+    const currentPath = window.location.pathname;
+    const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+    window.baseUrl = window.location.origin + basePath;
+    console.log('🔄 Computed baseUrl:', window.baseUrl);
+}
 
-// Global variables with safe fallbacks
-const CURRENT_USER_ID = window.currentUserId || null;
-const CSRF_TOKEN = window.csrfToken || '';
-const BASE_URL = window.baseUrl ? window.baseUrl.replace(/\/$/, '') : '';
-
-// Debug info
-console.log('Chat initialized with:', { CURRENT_USER_ID, BASE_URL: BASE_URL || 'Not set' });
-
-class ChatApp {
+class SimpleChat {
     constructor() {
         this.currentChatUser = null;
         this.pollInterval = null;
-        this.isSending = false;
-        
-        // Wait a bit for DOM to be fully ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.init());
-        } else {
-            setTimeout(() => this.init(), 100);
-        }
+        console.log('✅ SimpleChat constructor called');
+        this.init();
     }
 
     init() {
-        console.log('Initializing ChatApp...');
-        try {
-            this.bindEvents();
-            this.startStatusUpdates();
-            console.log('ChatApp initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize ChatApp:', error);
-        }
+        console.log('🔄 Initializing chat...');
+        this.bindEvents();
+        console.log('✅ Chat initialized');
     }
 
     bindEvents() {
-        console.log('Binding events...');
+        console.log('🔗 Binding events...');
+        
         this.bindUserMenu();
         this.bindUserClicks();
-        this.bindSearch();
         this.bindMessageSending();
-        this.bindFileUpload();
-        this.bindPageVisibility();
+        this.bindSearch();
     }
 
     bindUserMenu() {
-        const userMenuBtn = document.getElementById('userMenuBtn');
-        const userMenu = document.getElementById('userMenu');
+        const menuBtn = document.getElementById('userMenuBtn');
+        const menu = document.getElementById('userMenu');
         
-        if (userMenuBtn && userMenu) {
-            userMenuBtn.addEventListener('click', (e) => {
+        if (menuBtn && menu) {
+            menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                userMenu.classList.toggle('hidden');
+                menu.classList.toggle('hidden');
             });
-
-            document.addEventListener('click', (e) => {
-                if (!userMenu.contains(e.target) && e.target !== userMenuBtn) {
-                    userMenu.classList.add('hidden');
-                }
+            
+            document.addEventListener('click', () => {
+                menu.classList.add('hidden');
             });
         }
     }
 
     bindUserClicks() {
-        // Use event delegation for dynamic elements
+        console.log('👥 Binding user clicks...');
+        
         document.addEventListener('click', (e) => {
             const userItem = e.target.closest('.user-item');
             if (userItem) {
+                console.log('🎯 User item clicked!');
                 this.handleUserClick(userItem);
             }
         });
@@ -77,24 +65,41 @@ class ChatApp {
         const userId = userItem.dataset.userId;
         const fullName = userItem.dataset.fullname;
         const username = userItem.dataset.username;
-        const profilePicture = userItem.dataset.profilePicture || 'default.png';
+        const profilePic = userItem.dataset.profilePicture || 'default.png';
         
-        if (userId) {
-            this.openChat(userId, fullName, username, profilePicture);
+        console.log('💬 Opening chat with:', { userId, fullName });
+        
+        if (!userId) {
+            console.error('❌ No user ID found');
+            return;
         }
+        
+        this.openChat(userId, fullName, username, profilePic);
+    }
+
+    bindMessageSending() {
+        const form = document.getElementById('messageForm');
+        if (!form) {
+            console.warn('❌ Message form not found');
+            return;
+        }
+        
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.sendMessage();
+        });
+        
+        console.log('✅ Message sending bound');
     }
 
     bindSearch() {
         const searchInput = document.getElementById('searchUsers');
-        if (searchInput) {
-            let searchTimeout;
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    this.filterUsers(e.target.value.toLowerCase());
-                }, 300);
-            });
-        }
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            this.filterUsers(term);
+        });
     }
 
     filterUsers(searchTerm) {
@@ -110,104 +115,98 @@ class ChatApp {
         });
     }
 
-    bindMessageSending() {
-        const messageForm = document.getElementById('messageForm');
-        if (messageForm) {
-            messageForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.sendMessage();
-            });
-        }
-    }
-
-    bindFileUpload() {
-        const fileBtn = document.getElementById('fileUploadBtn');
-        const fileInput = document.getElementById('fileInput');
-        
-        if (fileBtn && fileInput) {
-            fileBtn.addEventListener('click', () => fileInput.click());
-        }
-    }
-
-    bindPageVisibility() {
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                this.stopPolling();
-            } else if (this.currentChatUser) {
-                this.startPolling(this.currentChatUser);
-            }
-        });
-    }
-
     openChat(userId, fullName, username, profilePicture) {
-        if (this.currentChatUser === userId) return;
+        console.log('🚀 Opening chat with user:', userId);
         
-        console.log('Opening chat with:', { userId, fullName });
         this.currentChatUser = userId;
         
-        // Update UI
         this.updateChatHeader(fullName, username, profilePicture);
-        this.showMessageInput();
         
-        // Load messages and start polling
+        const inputArea = document.getElementById('messageInputArea');
+        if (inputArea) {
+            inputArea.classList.remove('hidden');
+        }
+        
+        const receiverInput = document.getElementById('receiverId');
+        if (receiverInput) {
+            receiverInput.value = userId;
+        }
+        
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+            messageInput.focus();
+        }
+        
         this.loadMessages(userId);
         this.startPolling(userId);
     }
 
     updateChatHeader(fullName, username, profilePicture) {
-        const chatHeader = document.getElementById('chatHeader');
-        if (chatHeader) {
-            chatHeader.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <img src="${BASE_URL}/uploads/profiles/${profilePicture}" 
-                             alt="${fullName}" 
-                             class="w-10 h-10 rounded-full"
-                             onerror="this.src='${BASE_URL}/assets/images/default.png'">
-                        <div>
-                            <p class="font-semibold text-gray-800">${fullName}</p>
-                            <p class="text-xs text-gray-500">@${username}</p>
-                        </div>
-                    </div>
-                    <button onclick="window.chatApp.clearChat()" class="text-gray-500 hover:text-red-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            `;
-        }
-    }
-
-    showMessageInput() {
-        const inputArea = document.getElementById('messageInputArea');
-        const receiverInput = document.getElementById('receiverId');
+        const header = document.getElementById('chatHeader');
+        if (!header) return;
         
-        if (inputArea) inputArea.classList.remove('hidden');
-        if (receiverInput) receiverInput.value = this.currentChatUser;
+        // FIXED: Handle both default and uploaded profile pictures
+        let profilePicPath;
+        if (profilePicture === 'default.png') {
+            profilePicPath = 'assets/images/default.png';
+        } else {
+            profilePicPath = `uploads/profiles/${profilePicture}`;
+        }
+        
+        header.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <img src="${profilePicPath}" 
+                         alt="${fullName}" 
+                         class="w-10 h-10 rounded-full"
+                         onerror="this.src='assets/images/default.png'">
+                    <div>
+                        <p class="font-semibold text-gray-800">${fullName}</p>
+                        <p class="text-xs text-gray-500">@${username}</p>
+                    </div>
+                </div>
+                <button onclick="window.simpleChat.clearChat()" class="text-gray-500 hover:text-red-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
     }
 
     async loadMessages(userId) {
+        console.log('📨 Loading messages for user:', userId);
+        
         if (!userId) return;
         
         try {
-            const response = await fetch(`${BASE_URL}/chat/get_messages.php?user_id=${userId}&_=${Date.now()}`);
+            const response = await fetch(`chat/get_messages.php?user_id=${userId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
+            console.log('📩 Messages response:', data);
             
             if (data.success) {
                 this.displayMessages(data.messages);
+            } else {
+                console.error('❌ Failed to load messages:', data.message);
             }
         } catch (error) {
-            console.error('Error loading messages:', error);
+            console.error('❌ Error loading messages:', error);
         }
     }
 
     displayMessages(messages) {
-        const chatMessages = document.getElementById('chatMessages');
-        if (!chatMessages) return;
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+        
+        console.log('🖥️ Displaying messages:', messages?.length);
         
         if (!messages || messages.length === 0) {
-            chatMessages.innerHTML = `
+            container.innerHTML = `
                 <div class="flex items-center justify-center h-full text-gray-400">
                     <div class="text-center">
                         <p class="text-lg">No messages yet</p>
@@ -219,70 +218,83 @@ class ChatApp {
         }
         
         let html = '';
-        messages.forEach(message => {
-            const isSent = parseInt(message.sender_id) === parseInt(CURRENT_USER_ID);
-            const alignment = isSent ? 'justify-end' : 'justify-start';
-            const bgColor = isSent ? 'bg-purple-600 text-white' : 'bg-white text-gray-800 border border-gray-200';
+        messages.forEach(msg => {
+            // FIXED: Proper message alignment
+            const isSent = parseInt(msg.sender_id) === parseInt(window.currentUserId);
+            const alignClass = isSent ? 'justify-end' : 'justify-start';
+            const bgClass = isSent ? 'bg-purple-600 text-white' : 'bg-white text-gray-800 border border-gray-200';
             
             html += `
-                <div class="flex ${alignment} mb-4">
-                    <div class="max-w-xs md:max-w-md ${bgColor} rounded-lg p-3 shadow">
-                        <p class="break-words">${this.escapeHtml(message.message_text)}</p>
+                <div class="flex ${alignClass} mb-4">
+                    <div class="max-w-xs md:max-w-md ${bgClass} rounded-lg p-3 shadow">
+                        <p class="break-words">${this.escapeHtml(msg.message_text)}</p>
                         <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1">
-                            ${this.formatTime(message.created_at)}
+                            ${this.formatTime(msg.created_at)}
+                            ${isSent ? (msg.is_read ? ' ✓✓' : ' ✓') : ''}
                         </p>
                     </div>
                 </div>
             `;
         });
         
-        chatMessages.innerHTML = html;
+        container.innerHTML = html;
         
-        // Scroll to bottom
         setTimeout(() => {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            container.scrollTop = container.scrollHeight;
         }, 100);
     }
 
     async sendMessage() {
-        if (this.isSending || !this.currentChatUser) return;
+        console.log('📤 Sending message...');
         
         const messageInput = document.getElementById('messageInput');
-        const messageText = messageInput?.value.trim();
+        const receiverInput = document.getElementById('receiverId');
         
-        if (!messageText) return;
+        const message = messageInput?.value.trim();
+        const receiverId = receiverInput?.value;
         
-        this.isSending = true;
+        if (!message || !receiverId) {
+            console.warn('❌ Cannot send: missing message or receiver');
+            return;
+        }
+        
+        console.log('💬 Sending to:', receiverId, 'Message:', message);
         
         try {
             const formData = new FormData();
-            formData.append('receiver_id', this.currentChatUser);
-            formData.append('message_text', messageText);
-            formData.append('csrf_token', CSRF_TOKEN);
+            formData.append('receiver_id', receiverId);
+            formData.append('message_text', message);
+            formData.append('csrf_token', window.csrfToken || '');
             
-            const response = await fetch(`${BASE_URL}/chat/send_message.php`, {
+            const response = await fetch(`chat/send_message.php`, {
                 method: 'POST',
                 body: formData
             });
             
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
+            console.log('📨 Send response:', data);
             
             if (data.success) {
                 messageInput.value = '';
-                this.loadMessages(this.currentChatUser);
+                this.loadMessages(receiverId);
             } else {
-                this.showNotification(data.message || 'Failed to send message', 'error');
+                alert('Failed to send message: ' + (data.message || 'Unknown error'));
             }
         } catch (error) {
-            console.error('Error sending message:', error);
-            this.showNotification('Network error', 'error');
-        } finally {
-            this.isSending = false;
+            console.error('❌ Send error:', error);
+            alert('Network error: Failed to send message. Check console for details.');
         }
     }
 
     startPolling(userId) {
-        this.stopPolling();
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+        }
+        
         this.pollInterval = setInterval(() => {
             if (this.currentChatUser === userId) {
                 this.loadMessages(userId);
@@ -290,23 +302,22 @@ class ChatApp {
         }, 3000);
     }
 
-    stopPolling() {
+    clearChat() {
+        console.log('🧹 Clearing chat...');
+        
+        this.currentChatUser = null;
+        
         if (this.pollInterval) {
             clearInterval(this.pollInterval);
             this.pollInterval = null;
         }
-    }
-
-    clearChat() {
-        this.currentChatUser = null;
-        this.stopPolling();
         
-        const chatMessages = document.getElementById('chatMessages');
+        const container = document.getElementById('chatMessages');
         const inputArea = document.getElementById('messageInputArea');
-        const chatHeader = document.getElementById('chatHeader');
+        const header = document.getElementById('chatHeader');
         
-        if (chatMessages) {
-            chatMessages.innerHTML = `
+        if (container) {
+            container.innerHTML = `
                 <div class="flex items-center justify-center h-full text-gray-400">
                     <div class="text-center">
                         <svg class="w-20 h-20 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,8 +331,8 @@ class ChatApp {
         }
         
         if (inputArea) inputArea.classList.add('hidden');
-        if (chatHeader) {
-            chatHeader.innerHTML = `
+        if (header) {
+            header.innerHTML = `
                 <div class="flex items-center space-x-3">
                     <div class="text-gray-500 flex items-center">
                         <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,21 +345,6 @@ class ChatApp {
         }
     }
 
-    startStatusUpdates() {
-        // Update user status every 30 seconds
-        setInterval(() => {
-            if (CURRENT_USER_ID) {
-                fetch(`${BASE_URL}/api/update_status.php`, { method: 'POST' })
-                    .catch(err => console.error('Status update failed:', err));
-            }
-        }, 30000);
-    }
-
-    showNotification(message, type = 'info') {
-        // Simple notification implementation
-        console.log(`${type.toUpperCase()}: ${message}`);
-    }
-
     // Utility functions
     escapeHtml(text) {
         const div = document.createElement('div');
@@ -357,31 +353,82 @@ class ChatApp {
     }
 
     formatTime(timestamp) {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = now - date;
+        if (!timestamp) return 'Just now';
         
-        if (diff < 60000) return 'Just now';
-        if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-        if (diff < 86400000) {
-            return date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
+        try {
+            // Handle different timestamp formats
+            let date;
+            
+            if (timestamp instanceof Date) {
+                date = timestamp;
+            } else if (typeof timestamp === 'string') {
+                // Try different date formats
+                date = new Date(timestamp);
+                
+                // If still invalid, try replacing spaces with T for ISO format
+                if (isNaN(date.getTime())) {
+                    date = new Date(timestamp.replace(' ', 'T'));
+                }
+            } else {
+                date = new Date(timestamp);
+            }
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.warn('Invalid date:', timestamp);
+                return 'Recently';
+            }
+            
+            const now = new Date();
+            const diff = now - date;
+            
+            // Show relative time for recent messages
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) {
+                return date.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                });
+            }
+            
+            // For older messages, show date
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
+        } catch (error) {
+            console.error('Error formatting time:', error, timestamp);
+            return 'Recently';
         }
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-        });
     }
 }
 
-// Initialize the chat app when DOM is ready
+// Initialize when DOM is ready
+console.log('🔧 Setting up DOM ready listener...');
+
+function initializeChat() {
+    // Prevent multiple initializations
+    if (window.simpleChat) {
+        console.warn('⚠️ simpleChat already initialized, skipping...');
+        return;
+    }
+    
+    try {
+        console.log('🎉 DOM fully loaded - initializing chat...');
+        window.simpleChat = new SimpleChat();
+        console.log('✅ simpleChat initialized globally');
+    } catch (error) {
+        console.error('❌ Failed to initialize chat:', error);
+    }
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        window.chatApp = new ChatApp();
-    });
+    document.addEventListener('DOMContentLoaded', initializeChat);
 } else {
-    window.chatApp = new ChatApp();
+    // DOM already loaded
+    setTimeout(initializeChat, 100);
 }
