@@ -1,34 +1,3 @@
-<?php
-require_once 'includes/config.php';
-requireLogin();
-
-// Get current user data
-$current_user = getUserData($_SESSION['user_id']);
-
-// Get all users except current user
-$users_stmt = $conn->prepare("SELECT user_id, username, full_name, profile_picture, status, last_seen 
-                FROM users 
-                WHERE user_id != ? 
-                ORDER BY status DESC, full_name ASC");
-$users_stmt->execute([$_SESSION['user_id']]);
-$users = $users_stmt->fetchAll();
-
-// Get recent announcements
-$announcements_stmt = $conn->query("SELECT a.*, u.full_name as author 
-                        FROM announcements a 
-                        JOIN users u ON a.created_by = u.user_id 
-                        WHERE a.is_active = 1 
-                        ORDER BY a.created_at DESC 
-                        LIMIT 3");
-$announcements = $announcements_stmt->fetchAll();
-
-// Get unread message count
-$unread_stmt = $conn->prepare("SELECT COUNT(*) as unread_count 
-                 FROM messages 
-                 WHERE receiver_id = ? AND is_read = 0");
-$unread_stmt->execute([$_SESSION['user_id']]);
-$unread_count = $unread_stmt->fetch()['unread_count'];
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,68 +5,156 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Inline JS vars (make them JSON encoded to be safe) -->
-    <!-- In the <head> section of dashboard.php -->
-        <script>
-            // Pass PHP variables to JavaScript - ROBUST VERSION
-            const currentUserId = <?php echo $_SESSION['user_id'] ?? 'null'; ?>;
-            const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
-            const baseUrl = '<?php 
-                if (defined('BASE_URL')) {
-                    echo BASE_URL;
-                } else {
-                    // Fallback if BASE_URL is not defined
-                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
-                    $host = $_SERVER['HTTP_HOST'];
-                    $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-                    echo $protocol . '://' . $host . $path . '/';
-                }
-            ?>';
-            
-            // Debug: Log the baseUrl to console
-            console.log('Base URL:', baseUrl);
-        </script>
     
+    <!-- ================================================================ -->
+    <!-- CRITICAL: JAVASCRIPT VARIABLES FOR CHAT FUNCTIONALITY -->
+    <!-- ================================================================ -->
+    <!-- This section MUST come BEFORE chat.js loads -->
+    <!-- It sets up the global variables that chat.js needs to work -->
+    <script>
+        // ============================================================
+        // EXPLANATION: WHY WE USE window.VARIABLE_NAME
+        // ============================================================
+        // In JavaScript, 'window' is the global object in browsers
+        // When we write: window.currentUserId = 5
+        // We're creating a GLOBAL variable that can be accessed from ANY script
+        // This allows chat.js to read: window.currentUserId
+        
+        // ============================================================
+        // VARIABLE 1: currentUserId (MOST CRITICAL FOR MESSAGE ALIGNMENT)
+        // ============================================================
+        // This is the ID of the person who is currently logged in
+        // PHP reads it from $_SESSION['user_id'] which was set during login
+        // JavaScript will use this to determine if a message is "mine" or "theirs"
+        
+        window.currentUserId = <?php echo isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null'; ?>;
+        
+        // ============================================================
+        // VARIABLE 2: csrfToken (SECURITY TOKEN)
+        // ============================================================
+        // CSRF = Cross-Site Request Forgery
+        // This token prevents malicious websites from making requests
+        // It's like a secret password that proves the request came from your site
+        
+        window.csrfToken = '<?php echo isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : ''; ?>';
+        
+        // ============================================================
+        // VARIABLE 3: baseUrl (APPLICATION ROOT PATH)
+        // ============================================================
+        // This is the root URL of your application
+        // Example: http://192.168.1.184/chatapp/
+        // JavaScript uses this to construct API request URLs
+        
+        window.baseUrl = '<?php 
+            // Check if BASE_URL constant exists (from config.php)
+            if (defined('BASE_URL')) {
+                echo BASE_URL;
+            } else {
+                // Fallback: Build URL from server variables if BASE_URL not defined
+                // $_SERVER['HTTPS'] tells us if connection is secure (https vs http)
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+                
+                // $_SERVER['HTTP_HOST'] is the domain/IP (e.g., 192.168.1.184)
+                $host = $_SERVER['HTTP_HOST'];
+                
+                // dirname() gets the directory path, rtrim() removes trailing slashes
+                $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+                
+                // Combine all parts: http://192.168.1.184/chatapp/
+                echo $protocol . '://' . $host . $path . '/';
+            }
+        ?>';
+        
+        // ============================================================
+        // DEBUG LOGGING (HELPS YOU SEE IF VARIABLES ARE SET CORRECTLY)
+        // ============================================================
+        // This writes information to the browser console (F12 to see it)
+        // You can check if all variables have the correct values
+        
+        console.log('=== DASHBOARD VARIABLES (CHECK THESE!) ===');
+        console.log('currentUserId:', window.currentUserId);
+        console.log('currentUserId type:', typeof window.currentUserId);
+        console.log('csrfToken:', window.csrfToken ? 'SET ✓' : 'NOT SET ✗');
+        console.log('baseUrl:', window.baseUrl);
+        console.log('==========================================');
+        
+        // ============================================================
+        // VALIDATION: CHECK IF CRITICAL VARIABLES ARE MISSING
+        // ============================================================
+        // This helps catch problems early by warning you in the console
+        
+        if (window.currentUserId === null || window.currentUserId === undefined) {
+            console.error('❌ CRITICAL ERROR: currentUserId is not set!');
+            console.error('This will cause message alignment to fail.');
+            console.error('Check that $_SESSION[user_id] is set in PHP.');
+        } else {
+            console.log('✅ currentUserId is set correctly:', window.currentUserId);
+        }
+        
+        if (!window.baseUrl) {
+            console.warn('⚠️ WARNING: baseUrl is empty or undefined');
+        } else {
+            console.log('✅ baseUrl is set correctly:', window.baseUrl);
+        }
+    </script>
+    
+    <!-- ================================================================ -->
+    <!-- STYLING FOR CHAT INTERFACE -->
+    <!-- ================================================================ -->
     <style>
+        /* Container for entire chat area */
         .chat-container {
+            /* calc() does math: 100vh (full viewport height) minus 120px for nav/footer */
             height: calc(100vh - 120px);
         }
+        
+        /* User list in sidebar */
         .user-list {
             height: calc(100vh - 200px);
+            /* overflow-y: auto means show scrollbar when content is too tall */
             overflow-y: auto;
         }
+        
+        /* Messages display area */
         .chat-messages {
             height: calc(100% - 140px);
             overflow-y: auto;
         }
+        
+        /* Online status indicator dot */
         .online-dot {
             width: 10px;
             height: 10px;
-            border-radius: 50%;
+            border-radius: 50%; /* Makes it circular */
             display: inline-block;
             margin-right: 5px;
         }
-        .online { background-color: #10b981; }
-        .offline { background-color: #6b7280; }
-        .busy { background-color: #f59e0b; }
-        .away { background-color: #8b5cf6; }
         
+        /* Status colors */
+        .online { background-color: #10b981; }   /* Green = online */
+        .offline { background-color: #6b7280; }  /* Gray = offline */
+        .busy { background-color: #f59e0b; }     /* Orange = busy */
+        .away { background-color: #8b5cf6; }     /* Purple = away */
+        
+        /* Message bubble styling */
         .message-bubble {
-            max-width: 70%;
-            word-wrap: break-word;
+            max-width: 70%; /* Messages take up at most 70% of width */
+            word-wrap: break-word; /* Long words wrap to next line */
         }
         
+        /* Hide scrollbar but keep functionality */
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
         }
         
+        /* Notification badge (unread count) */
         .notification-badge {
             position: absolute;
             top: -5px;
             right: -5px;
-            background: #ef4444;
+            background: #ef4444; /* Red background */
             color: white;
-            border-radius: 50%;
+            border-radius: 50%; /* Circular */
             width: 20px;
             height: 20px;
             font-size: 11px;
