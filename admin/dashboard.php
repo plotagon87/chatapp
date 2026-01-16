@@ -37,6 +37,9 @@ $recent_activities = $activities_stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#7c3aed">
+    <link rel="apple-touch-icon" href="../assets/images/icon-192.png">
     <title>Admin Dashboard - LAN Chat</title>
         <script>
             // Pass PHP variables to JavaScript

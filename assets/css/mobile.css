@@ -1,0 +1,178 @@
+/* ============================================ */
+/* MOBILE-SPECIFIC IMPROVEMENTS */
+/* Additional styles for better mobile UX */
+/* ============================================ */
+
+/* ============================================ */
+/* MOBILE PHONES (up to 640px) */
+/* ============================================ */
+@media (max-width: 640px) {
+    /* Larger touch targets for better mobile interaction */
+    .user-item {
+        padding: 1rem;
+        min-height: 70px;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Better message spacing and sizing */
+    .message-bubble {
+        font-size: 0.9375rem; /* 15px */
+        padding: 0.75rem;
+        line-height: 1.5;
+    }
+    
+    /* Compact announcements on mobile */
+    .announcement-banner {
+        padding: 0.75rem;
+    }
+    
+    .announcement-banner h3 {
+        font-size: 1rem;
+    }
+    
+    .announcement-banner p {
+        font-size: 0.875rem;
+    }
+    
+    /* Full-width modals on mobile */
+    .modal {
+        width: 95%;
+        margin: 0 auto;
+        max-width: none;
+    }
+    
+    /* Hide decorative elements on mobile to save space */
+    .desktop-only {
+        display: none !important;
+    }
+    
+    /* Ensure all clickable elements are big enough */
+    button, 
+    .btn,
+    a.button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.75rem 1rem;
+    }
+    
+    /* Better form inputs on mobile */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    textarea,
+    select {
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+    }
+    
+    /* Navigation adjustments */
+    nav {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    /* Card spacing */
+    .card,
+    .bg-white {
+        margin-bottom: 1rem;
+    }
+}
+
+/* ============================================ */
+/* TABLETS (641px to 1024px) */
+/* ============================================ */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .chat-container {
+        height: calc(100vh - 100px);
+    }
+    
+    .user-sidebar {
+        max-width: 280px;
+    }
+}
+
+/* ============================================ */
+/* PREVENT ZOOM ON INPUT FOCUS (iOS FIX) */
+/* iOS Safari zooms in when font-size < 16px */
+/* ============================================ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+textarea,
+select {
+    font-size: 16px !important;
+}
+
+/* ============================================ */
+/* IMPROVE SCROLLING ON MOBILE */
+/* ============================================ */
+.scrollable {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+}
+
+/* ============================================ */
+/* SAFE AREA INSETS FOR NOTCHED DEVICES */
+/* iPhone X and newer */
+/* ============================================ */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+    
+    nav {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+}
+
+/* ============================================ */
+/* LOADING STATES */
+/* ============================================ */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #7c3aed;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================ */
+/* SMOOTH ANIMATIONS */
+/* ============================================ */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+.clickable {
+    transition: all 0.2s ease;
+}
+
+/* ============================================ */
+/* LANDSCAPE MODE ADJUSTMENTS */
+/* ============================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+    .chat-container {
+        height: calc(100vh - 80px);
+    }
+    
+    .user-list {
+        height: calc(100vh - 160px);
+    }
+}
