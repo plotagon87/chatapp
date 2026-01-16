@@ -28,6 +28,26 @@ $stmt = $conn->prepare($query);
 $stmt->execute([$current_user_id, $other_user_id, $other_user_id, $current_user_id]);
 $messages = $stmt->fetchAll();
 
+// Get reactions for all messages
+foreach ($messages as &$message) {
+    // Get reaction summary
+    $reactions_stmt = $conn->prepare("
+        SELECT reaction_type, COUNT(*) as count,
+        GROUP_CONCAT(u.full_name ORDER BY mr.created_at SEPARATOR ', ') as users
+        FROM message_reactions mr
+        JOIN users u ON mr.user_id = u.user_id
+        WHERE mr.message_id = ?
+        GROUP BY reaction_type
+    ");
+    $reactions_stmt->execute([$message['message_id']]);
+    $message['reactions'] = $reactions_stmt->fetchAll();
+    
+    // Check if current user reacted
+    $user_reactions_stmt = $conn->prepare("SELECT reaction_type FROM message_reactions WHERE message_id = ? AND user_id = ?");
+    $user_reactions_stmt->execute([$message['message_id'], $current_user_id]);
+    $message['user_reactions'] = $user_reactions_stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
 // Mark received messages as read
 $update_stmt = $conn->prepare("UPDATE messages SET is_read = 1, read_at = NOW() WHERE receiver_id = ? AND sender_id = ? AND is_read = 0");
 $update_stmt->execute([$current_user_id, $other_user_id]);

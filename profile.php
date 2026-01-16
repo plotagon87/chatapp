@@ -6,7 +6,7 @@ $user = getUserData($_SESSION['user_id']);
 $success = '';
 $error = '';
 
-/// Handle profile update
+// Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $full_name = sanitize($_POST['full_name']);
     $email = sanitize($_POST['email']);
@@ -27,45 +27,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Handle profile picture upload
             $profile_picture = $user['profile_picture'];
+            
             if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['profile_picture'];
                 $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
                 
+                // Validate file type
                 if (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
-                    $upload_dir = UPLOAD_PATH . 'profiles/';
-                    if (!is_dir($upload_dir)) {
-                        mkdir($upload_dir, 0755, true);
-                    }
-                    
-                    $new_filename = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $new_filename;
-                    
-                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        // Delete old profile picture if not default
-                        if ($user['profile_picture'] !== 'default.png' && file_exists($upload_dir . $user['profile_picture'])) {
-                            unlink($upload_dir . $user['profile_picture']);
+                    // Validate file size (5MB max)
+                    if ($file['size'] <= 5242880) {
+                        $upload_dir = 'uploads/profiles/';
+                        
+                        // Create directory if it doesn't exist
+                        if (!is_dir($upload_dir)) {
+                            mkdir($upload_dir, 0755, true);
                         }
-                        $profile_picture = $new_filename;
+                        
+                        // Generate unique filename
+                        $new_filename = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $file_extension;
+                        $upload_path = $upload_dir . $new_filename;
+                        
+                        // Move uploaded file
+                        if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                            // Delete old profile picture if not default
+                            if ($user['profile_picture'] !== 'default.png' && 
+                                file_exists($upload_dir . $user['profile_picture'])) {
+                                @unlink($upload_dir . $user['profile_picture']);
+                            }
+                            
+                            $profile_picture = $new_filename;
+                        } else {
+                            $error = 'Failed to upload profile picture';
+                        }
+                    } else {
+                        $error = 'Profile picture must be less than 5MB';
                     }
+                } else {
+                    $error = 'Profile picture must be JPG, PNG, or GIF';
                 }
             }
             
-            // Update profile - FIXED VERSION
-            $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ? WHERE user_id = ?");
-            
-            if ($stmt->execute([$full_name, $email, $custom_status, $profile_picture, $_SESSION['user_id']])) {
-                $_SESSION['full_name'] = $full_name;
-                $_SESSION['profile_picture'] = $profile_picture;
-                $success = 'Profile updated successfully';
-                $user = getUserData($_SESSION['user_id']); // Refresh user data
-                logActivity($_SESSION['user_id'], 'Updated profile');
-            } else {
-                $error = 'Failed to update profile';
+            // Update profile only if no upload errors
+            if (empty($error)) {
+                $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ? WHERE user_id = ?");
+                
+                if ($stmt->execute([$full_name, $email, $custom_status, $profile_picture, $_SESSION['user_id']])) {
+                    $_SESSION['full_name'] = $full_name;
+                    $_SESSION['profile_picture'] = $profile_picture;
+                    $success = 'Profile updated successfully';
+                    $user = getUserData($_SESSION['user_id']); // Refresh user data
+                    logActivity($_SESSION['user_id'], 'Updated profile');
+                } else {
+                    $error = 'Failed to update profile';
+                }
             }
         }
     }
 }
-
 
 // Get user statistics
 $stats_query = "SELECT 
@@ -80,15 +98,7 @@ $stats = $stmt->fetch();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Standard favicon for browsers -->
-    <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
-    <!-- Apple Touch Icon (for iOS home screen) -->
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
-    <!-- PWA Manifest (contains app info and icon references) -->
-    <link rel="manifest" href="manifest.json">
-    <!-- Theme color (shows in Android status bar when PWA is installed) -->
-    <meta name="theme-color" content="#7c3aed">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
@@ -120,7 +130,12 @@ $stats = $stmt->fetch();
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <div class="text-center">
                         <div class="relative inline-block">
-                            <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
+                            <?php
+                            $profile_pic_path = ($user['profile_picture'] && $user['profile_picture'] !== 'default.png') 
+                                ? 'uploads/profiles/' . htmlspecialchars($user['profile_picture'])
+                                : 'assets/images/default.png';
+                            ?>
+                            <img src="<?php echo $profile_pic_path; ?>" 
                                  alt="Profile" 
                                  class="w-32 h-32 rounded-full mx-auto border-4 border-purple-500"
                                  onerror="this.src='assets/images/default.png'">
@@ -201,7 +216,7 @@ $stats = $stmt->fetch();
                                 <input 
                                     type="file" 
                                     name="profile_picture" 
-                                    accept="image/*"
+                                    accept="image/jpeg,image/png,image/gif,image/jpg"
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 >
                                 <p class="text-xs text-gray-500 mt-1">Supported: JPG, PNG, GIF (Max 5MB)</p>
