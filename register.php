@@ -50,9 +50,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Standard favicon for browsers -->
+    <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <!-- Apple Touch Icon (for iOS home screen) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
+    <!-- PWA Manifest (contains app info and icon references) -->
     <link rel="manifest" href="manifest.json">
+    <!-- Theme color (shows in Android status bar when PWA is installed) -->
     <meta name="theme-color" content="#7c3aed">
-    <link rel="apple-touch-icon" href="assets/images/icon-192.png">
     <title>Register - LAN Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
