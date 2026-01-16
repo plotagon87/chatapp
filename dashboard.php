@@ -60,11 +60,15 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         const currentUserId = <?php echo (int)$_SESSION['user_id']; ?>;
         const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
         const baseUrl = '<?php echo BASE_URL; ?>';
+        const userRole = '<?php echo htmlspecialchars($current_user['role'] ?? 'user'); ?>';
+        const isAdmin = <?php echo isAdmin() ? 'true' : 'false'; ?>;
         
         console.log('=== DASHBOARD VARIABLES ===');
         console.log('currentUserId:', currentUserId);
         console.log('csrfToken:', csrfToken ? 'SET ✓' : 'NOT SET ✗');
         console.log('baseUrl:', baseUrl);
+        console.log('userRole:', userRole);
+        console.log('isAdmin:', isAdmin);
         console.log('==========================');
     </script>
     
@@ -76,6 +80,29 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         /* Fixed navbar - account for it in body */
         body {
             padding-top: 64px; /* Height of navbar */
+        }
+        
+        /* Ensure dropdown works in navbar */
+        nav {
+            overflow: visible !important;
+        }
+        
+        #userMenu {
+            position: absolute !important;
+            z-index: 9999 !important;
+            top: 100% !important;
+            right: 0 !important;
+        }
+        
+        /* Custom hidden state for menu */
+        #userMenu.menu-hidden {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        #userMenu:not(.menu-hidden) {
+            display: block !important;
+            visibility: visible !important;
         }
         
         /* ============================================ */
@@ -304,23 +331,24 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                         </div>
                         
                         <!-- Dropdown Arrow -->
-                        <div class="relative">
-                            <button id="userMenuBtn" class="text-gray-600 hover:text-purple-600 p-1">
-                                <svg class="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="relative z-50">
+                            <button id="userMenuBtn" type="button" class="text-gray-600 hover:text-purple-600 p-2 focus:outline-none focus:ring-2 focus:ring-purple-300 rounded cursor-pointer transition-colors" aria-haspopup="true" aria-expanded="false">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
                             
                             <!-- Dropdown Menu -->
-                            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50">
-                                <a href="profile.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Profile</a>
-                                <a href="settings.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Settings</a>
-                                <a href="groups.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Groups</a>
-                                <?php if (isAdmin()): ?>
-                                    <a href="admin/dashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Admin Panel</a>
-                                <?php endif; ?>
-                                <hr class="my-1">
-                                <a href="logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-50">Logout</a>
+                            <div id="userMenu" class="menu-hidden absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-2xl z-50 border border-gray-200 top-full">
+                                <div class="py-1">
+                                    <a href="profile.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Profile</a>
+                                    <a href="settings.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Settings</a>
+                                    <a href="groups.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Groups</a>
+                                    <?php if (isAdmin()): ?>
+                                        <a href="admin/dashboard.php" class="block px-4 py-3 text-sm text-purple-600 font-semibold hover:bg-purple-50 hover:text-purple-900 transition-colors border-t border-gray-200">Admin Panel</a>
+                                    <?php endif; ?>
+                                    <a href="logout.php" class="block px-4 py-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-900 transition-colors border-t border-gray-200">Logout</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -334,6 +362,13 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <!-- Darkens background when sidebar is open -->
     <!-- ============================================ -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- DEBUG: Admin Status -->
+    <div style="display: none;" id="debugInfo">
+        isAdmin: <?php echo isAdmin() ? 'true' : 'false'; ?> | 
+        Role: <?php echo htmlspecialchars($current_user['role'] ?? 'unknown'); ?> | 
+        UserID: <?php echo $_SESSION['user_id']; ?>
+    </div>
 
     <!-- ============================================ -->
     <!-- MAIN CONTENT AREA -->
@@ -427,7 +462,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 
                 <!-- Announcements Banner -->
                 <?php if (count($announcements) > 0): ?>
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-4 text-white">
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-4 text-white" id="announcementsContainer">
                         <h3 class="font-bold text-base lg:text-lg mb-3 flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
@@ -435,7 +470,9 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                             Announcements
                         </h3>
                         <?php foreach($announcements as $announcement): ?>
-                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2">
+                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item" 
+                                data-announcement-id="<?php echo $announcement['announcement_id']; ?>"
+                                data-is-welcome="<?php echo isset($announcement['is_welcome']) && $announcement['is_welcome'] ? 'true' : 'false'; ?>">
                                 <p class="font-semibold text-sm lg:text-base"><?php echo htmlspecialchars($announcement['title']); ?></p>
                                 <p class="text-xs lg:text-sm opacity-90"><?php echo htmlspecialchars($announcement['content']); ?></p>
                                 <p class="text-xs opacity-75 mt-1">By <?php echo htmlspecialchars($announcement['author']); ?> • <?php echo timeAgo($announcement['created_at']); ?></p>
@@ -509,24 +546,75 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <!-- JAVASCRIPT -->
     <!-- ============================================ -->
     
+    <!-- Welcome Announcements Auto-Hide Script -->
+    <script>
+        // ============================================
+        // WELCOME ANNOUNCEMENTS - AUTO HIDE AFTER 15 SECONDS FOR NEW USERS
+        // ============================================
+        window.addEventListener('load', function() {
+            // Check if user is new (account created within last 7 days)
+            const userCreatedAt = new Date(<?php echo strtotime($current_user['created_at']) * 1000; ?>);
+            const now = new Date();
+            const daysOld = (now - userCreatedAt) / (1000 * 60 * 60 * 24);
+            const isNewUser = daysOld <= 7;
+            
+            console.log('User age: ' + daysOld.toFixed(1) + ' days, Is new user:', isNewUser);
+            
+            if (isNewUser) {
+                // Find welcome announcements
+                const welcomeAnnouncements = document.querySelectorAll('.announcement-item[data-is-welcome="true"]');
+                console.log('Found ' + welcomeAnnouncements.length + ' welcome announcements');
+                
+                welcomeAnnouncements.forEach(function(announcement) {
+                    // Show for 15 seconds then fade out and hide
+                    const timeoutMs = 15000; // 15 seconds
+                    
+                    setTimeout(function() {
+                        // Add fade-out animation
+                        announcement.style.transition = 'opacity 0.5s ease-out';
+                        announcement.style.opacity = '0';
+                        
+                        // Remove from DOM after fade completes
+                        setTimeout(function() {
+                            announcement.style.display = 'none';
+                        }, 500);
+                    }, timeoutMs);
+                });
+            }
+        });
+    </script>
+    
     <!-- User Menu Toggle Script -->
     <script>
         // ============================================
-        // USER DROPDOWN MENU
+        // USER DROPDOWN MENU - SIMPLIFIED
         // ============================================
-        const userMenuBtn = document.getElementById('userMenuBtn');
-        const userMenu = document.getElementById('userMenu');
-        
-        if (userMenuBtn && userMenu) {
-            userMenuBtn.addEventListener('click', (e) => {
+        window.addEventListener('load', function() {
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            const userMenu = document.getElementById('userMenu');
+            
+            console.log('Menu setup: btn=', !!userMenuBtn, 'menu=', !!userMenu);
+            
+            if (!userMenuBtn || !userMenu) {
+                console.error('Menu elements not found!');
+                return;
+            }
+            
+            // Toggle menu on button click
+            userMenuBtn.addEventListener('click', function(e) {
+                e.preventDefault();
                 e.stopPropagation();
-                userMenu.classList.toggle('hidden');
+                userMenu.classList.toggle('menu-hidden');
             });
             
-            document.addEventListener('click', () => {
-                userMenu.classList.add('hidden');
+            // Close when clicking outside
+            document.addEventListener('click', function(e) {
+                if (e.target !== userMenuBtn && !userMenuBtn.contains(e.target) && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('menu-hidden');
+                }
             });
-        }
+        });
+    
         
         // ============================================
         // MOBILE SIDEBAR TOGGLE
