@@ -1,128 +1,119 @@
-// assets/js/chat.js - COMPLETE FIXED VERSION WITH PROPER MESSAGE ALIGNMENT
-// This file handles all chat functionality including message sending, receiving, and display
+// ============================================
+// chat.js - LAN Chat Application
+// ============================================
+// This file handles all chat functionality including:
+// - Sending messages
+// - Receiving messages
+// - Message display and alignment
+// - User selection
+// - Real-time polling for new messages
+// ============================================
 
 console.log('🔧 chat.js loading...');
 
-// ============================================================================
-// EMERGENCY FALLBACK FOR BASE URL
-// ============================================================================
-// This ensures that baseUrl is always defined, even if not set in HTML
-// baseUrl is the root path of your application (e.g., http://localhost/lan_chat/)
-if (typeof window.baseUrl === 'undefined' || !window.baseUrl) {
-    console.warn('⚠️ baseUrl is undefined, using relative paths');
-    
-    // Get current page path (e.g., /lan_chat/dashboard.php)
-    const currentPath = window.location.pathname;
-    
-    // Extract base path by removing everything after last slash
-    const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-    
-    // Combine origin (http://localhost) with base path
-    window.baseUrl = window.location.origin + basePath;
-    console.log('🔄 Computed baseUrl:', window.baseUrl);
+// ============================================
+// IMPORTANT: Check if global variables exist
+// ============================================
+// These variables MUST be set by dashboard.php BEFORE this script loads
+// If they're not set, something went wrong with the page load
+
+if (typeof currentUserId === 'undefined') {
+    console.error('❌ FATAL ERROR: currentUserId is not defined!');
+    console.error('This means dashboard.php did not properly set the global variable.');
+    console.error('Message alignment will fail completely.');
 }
 
-// ============================================================================
-// MAIN CHAT CLASS
-// ============================================================================
-// This class encapsulates (wraps) all chat functionality
-// It manages user selection, message sending, message receiving, and polling
+if (typeof window.currentUserId === 'undefined') {
+    console.error('❌ FATAL ERROR: window.currentUserId is also not defined!');
+}
+
+// Log what we have access to
+console.log('=== CHAT.JS VARIABLE CHECK ===');
+console.log('currentUserId (direct):', typeof currentUserId !== 'undefined' ? currentUserId : 'NOT FOUND');
+console.log('window.currentUserId:', typeof window.currentUserId !== 'undefined' ? window.currentUserId : 'NOT FOUND');
+console.log('csrfToken:', typeof csrfToken !== 'undefined' ? 'FOUND' : 'NOT FOUND');
+console.log('baseUrl:', typeof baseUrl !== 'undefined' ? baseUrl : 'NOT FOUND');
+console.log('==============================');
+
+// ============================================
+// SimpleChat Class
+// ============================================
+// This class manages all chat operations
 class SimpleChat {
-    // ------------------------------------------------------------------------
-    // CONSTRUCTOR
-    // ------------------------------------------------------------------------
-    // This runs when you create a new SimpleChat object: new SimpleChat()
     constructor() {
-        // Store which user we're currently chatting with (null = no chat open)
+        // Store the current user ID for message alignment
+        // Try to get it from global scope (set by dashboard.php)
+        this.currentUserId = typeof currentUserId !== 'undefined' ? currentUserId : window.currentUserId;
+        
+        // Validate that we have a current user ID
+        if (!this.currentUserId) {
+            console.error('❌ CRITICAL: SimpleChat initialized without currentUserId!');
+            console.error('currentUserId:', this.currentUserId);
+            alert('Error: User ID not found. Please refresh the page.');
+            return;
+        }
+        
+        console.log('✅ SimpleChat initialized with currentUserId:', this.currentUserId);
+        
+        // The user we're currently chatting with
         this.currentChatUser = null;
         
-        // Store the interval ID for polling (checking for new messages)
-        // setInterval() returns an ID that we can use to stop it later
+        // Interval for polling new messages
         this.pollInterval = null;
         
-        console.log('✅ SimpleChat constructor called');
-        
-        // Call initialization method to set everything up
+        // Initialize the chat interface
         this.init();
     }
 
-    // ------------------------------------------------------------------------
-    // INITIALIZATION
-    // ------------------------------------------------------------------------
-    // This sets up all the event listeners (click handlers, form submissions)
     init() {
         console.log('🔄 Initializing chat...');
-        
-        // Bind all event listeners
         this.bindEvents();
-        
         console.log('✅ Chat initialized');
     }
 
-    // ------------------------------------------------------------------------
-    // BIND ALL EVENTS
-    // ------------------------------------------------------------------------
-    // This attaches event listeners to various elements on the page
     bindEvents() {
         console.log('🔗 Binding events...');
         
-        // Bind user menu dropdown (top right corner)
-        this.bindUserMenu();
-        
-        // Bind clicks on user items in the sidebar
-        this.bindUserClicks();
-        
-        // Bind message form submission
-        this.bindMessageSending();
-        
-        // Bind search functionality
-        this.bindSearch();
+        // Bind all event listeners
+        this.bindUserMenu();       // Dropdown menu
+        this.bindUserClicks();     // User list clicks
+        this.bindMessageSending(); // Send message form
+        this.bindSearch();         // Search box
     }
 
-    // ------------------------------------------------------------------------
-    // BIND USER MENU
-    // ------------------------------------------------------------------------
-    // This handles the dropdown menu in the top right (Profile, Settings, etc.)
+    // ============================================
+    // User Menu Toggle
+    // ============================================
+    // Opens/closes the dropdown menu in the top-right
     bindUserMenu() {
-        // getElementById() finds an element by its ID attribute
         const menuBtn = document.getElementById('userMenuBtn');
         const menu = document.getElementById('userMenu');
         
-        // Check if both elements exist (they should)
         if (menuBtn && menu) {
-            // addEventListener() runs a function when an event occurs
-            // 'click' = when user clicks on the button
+            // Toggle menu when button clicked
             menuBtn.addEventListener('click', (e) => {
-                // stopPropagation() prevents the click from bubbling up to document
-                // This prevents the document click listener from immediately closing the menu
-                e.stopPropagation();
-                
-                // toggle() adds the class if it's not there, removes it if it is
-                // 'hidden' is a Tailwind CSS class that hides elements
+                e.stopPropagation(); // Don't trigger document click
                 menu.classList.toggle('hidden');
             });
             
-            // Click anywhere on the page to close the menu
+            // Close menu when clicking anywhere else
             document.addEventListener('click', () => {
                 menu.classList.add('hidden');
             });
         }
     }
 
-    // ------------------------------------------------------------------------
-    // BIND USER CLICKS
-    // ------------------------------------------------------------------------
-    // This handles when you click on a user in the sidebar to open a chat
+    // ============================================
+    // User List Click Handler
+    // ============================================
+    // When a user is clicked in the sidebar, open chat with them
     bindUserClicks() {
         console.log('👥 Binding user clicks...');
         
-        // We use event delegation here - listen on document instead of each user item
-        // This is more efficient and works even for dynamically added users
+        // Use event delegation for better performance
+        // This catches clicks on any .user-item, even if added dynamically
         document.addEventListener('click', (e) => {
-            // closest() searches up the DOM tree for a matching element
-            // It finds the nearest .user-item ancestor of what was clicked
             const userItem = e.target.closest('.user-item');
-            
             if (userItem) {
                 console.log('🎯 User item clicked!');
                 this.handleUserClick(userItem);
@@ -130,45 +121,41 @@ class SimpleChat {
         });
     }
 
-    // ------------------------------------------------------------------------
-    // HANDLE USER CLICK
-    // ------------------------------------------------------------------------
-    // This processes a click on a user item and opens the chat with that user
+    // ============================================
+    // Handle User Selection
+    // ============================================
+    // Opens a chat with the selected user
     handleUserClick(userItem) {
-        // dataset gives access to data-* attributes on the element
-        // data-user-id becomes dataset.userId
+        // Get user data from data-* attributes
         const userId = userItem.dataset.userId;
         const fullName = userItem.dataset.fullname;
         const username = userItem.dataset.username;
-        
-        // Use default.png if no profile picture is set
         const profilePic = userItem.dataset.profilePicture || 'default.png';
         
         console.log('💬 Opening chat with:', { userId, fullName });
         
-        // Validate that we have a user ID
+        // Validate we have a user ID
         if (!userId) {
             console.error('❌ No user ID found');
             return;
         }
         
-        // Open the chat interface for this user
+        // Open the chat
         this.openChat(userId, fullName, username, profilePic);
     }
 
-    // ------------------------------------------------------------------------
-    // BIND MESSAGE SENDING
-    // ------------------------------------------------------------------------
-    // This handles form submission when you send a message
+    // ============================================
+    // Message Sending
+    // ============================================
+    // Binds the message form submit event
     bindMessageSending() {
         const form = document.getElementById('messageForm');
-        
         if (!form) {
             console.warn('❌ Message form not found');
             return;
         }
         
-        // preventDefault() stops the form from doing a page reload (default behavior)
+        // Prevent form from submitting normally (no page reload)
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             this.sendMessage();
@@ -177,92 +164,86 @@ class SimpleChat {
         console.log('✅ Message sending bound');
     }
 
-    // ------------------------------------------------------------------------
-    // BIND SEARCH
-    // ------------------------------------------------------------------------
-    // This handles the search box for filtering users in the sidebar
+    // ============================================
+    // Search Functionality
+    // ============================================
+    // Filters the user list based on search input
     bindSearch() {
         const searchInput = document.getElementById('searchUsers');
-        
         if (!searchInput) return;
         
-        // 'input' event fires every time the text changes
+        // Filter users as they type
         searchInput.addEventListener('input', (e) => {
-            // toLowerCase() converts to lowercase for case-insensitive search
             const term = e.target.value.toLowerCase();
             this.filterUsers(term);
         });
     }
 
-    // ------------------------------------------------------------------------
-    // FILTER USERS
-    // ------------------------------------------------------------------------
-    // This shows/hides users in the sidebar based on search term
+    // ============================================
+    // Filter Users
+    // ============================================
+    // Shows/hides users based on search term
     filterUsers(searchTerm) {
-        // querySelectorAll() returns all elements matching the selector
         document.querySelectorAll('.user-item').forEach(item => {
             const fullName = (item.dataset.fullname || '').toLowerCase();
             const username = (item.dataset.username || '').toLowerCase();
             
-            // includes() checks if a string contains another string
+            // Show if matches either name or username
             if (fullName.includes(searchTerm) || username.includes(searchTerm)) {
-                item.style.display = 'block'; // Show the user
+                item.style.display = 'block';
             } else {
-                item.style.display = 'none'; // Hide the user
+                item.style.display = 'none';
             }
         });
     }
 
-    // ------------------------------------------------------------------------
-    // OPEN CHAT
-    // ------------------------------------------------------------------------
-    // This opens a chat window with a specific user
+    // ============================================
+    // Open Chat Window
+    // ============================================
+    // Opens a chat with a specific user
     openChat(userId, fullName, username, profilePicture) {
         console.log('🚀 Opening chat with user:', userId);
         
-        // Store the current chat user ID (we'll need this for sending messages)
+        // Store who we're chatting with
         this.currentChatUser = userId;
         
-        // Update the chat header to show user info
+        // Update the header to show their info
         this.updateChatHeader(fullName, username, profilePicture);
         
-        // Show the message input area (it's hidden by default)
+        // Show the message input area
         const inputArea = document.getElementById('messageInputArea');
         if (inputArea) {
             inputArea.classList.remove('hidden');
         }
         
-        // Set the receiver ID in the hidden input field
+        // Set the receiver ID in the hidden input
         const receiverInput = document.getElementById('receiverId');
         if (receiverInput) {
             receiverInput.value = userId;
         }
         
-        // Focus the message input box so user can start typing immediately
+        // Focus the message input
         const messageInput = document.getElementById('messageInput');
         if (messageInput) {
             messageInput.focus();
         }
         
-        // Load existing messages with this user
+        // Load messages with this user
         this.loadMessages(userId);
         
-        // Start polling for new messages every 3 seconds
+        // Start polling for new messages
         this.startPolling(userId);
     }
 
-    // ------------------------------------------------------------------------
-    // UPDATE CHAT HEADER
-    // ------------------------------------------------------------------------
-    // This updates the header bar to show the current chat user's info
+    // ============================================
+    // Update Chat Header
+    // ============================================
+    // Updates the header to show the selected user's info
     updateChatHeader(fullName, username, profilePicture) {
         const header = document.getElementById('chatHeader');
-        
         if (!header) return;
         
-        // IMPORTANT: Handle profile picture paths correctly
-        // Default images are in assets/images/
-        // User-uploaded images are in uploads/profiles/
+        // Determine the correct path for the profile picture
         let profilePicPath;
         if (profilePicture === 'default.png') {
             profilePicPath = 'assets/images/default.png';
@@ -270,7 +251,7 @@ class SimpleChat {
             profilePicPath = `uploads/profiles/${profilePicture}`;
         }
         
-        // Template literal (backticks) allows embedding variables with ${}
+        // Build the header HTML
         header.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
@@ -292,53 +273,50 @@ class SimpleChat {
         `;
     }
 
-    // ------------------------------------------------------------------------
-    // LOAD MESSAGES
-    // ------------------------------------------------------------------------
-    // This fetches messages from the server via AJAX (Asynchronous JavaScript And XML)
+    // ============================================
+    // Load Messages
+    // ============================================
+    // Fetches messages with a specific user from the server
     async loadMessages(userId) {
         console.log('📨 Loading messages for user:', userId);
         
         if (!userId) return;
         
         try {
-            // fetch() makes an HTTP request to the server
-            // It returns a Promise, so we use await to wait for the response
+            // Make AJAX request to get messages
             const response = await fetch(`chat/get_messages.php?user_id=${userId}`);
             
-            // Check if the HTTP response was successful (status 200-299)
+            // Check if request was successful
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            // Parse the JSON response body
+            // Parse JSON response
             const data = await response.json();
             console.log('📩 Messages response:', data);
             
+            // Display the messages if successful
             if (data.success) {
-                // Display the messages in the chat interface
                 this.displayMessages(data.messages);
             } else {
                 console.error('❌ Failed to load messages:', data.message);
             }
         } catch (error) {
-            // Log any errors that occurred during the fetch
             console.error('❌ Error loading messages:', error);
         }
     }
 
-    // ------------------------------------------------------------------------
-    // DISPLAY MESSAGES - THIS IS THE CRITICAL FIX
-    // ------------------------------------------------------------------------
-    // This renders messages in the chat interface with CORRECT ALIGNMENT
+    // ============================================
+    // Display Messages
+    // ============================================
+    // Renders messages in the chat window
     displayMessages(messages) {
         const container = document.getElementById('chatMessages');
-        
         if (!container) return;
         
         console.log('🖥️ Displaying messages:', messages?.length);
         
-        // Show placeholder if no messages exist
+        // Show empty state if no messages
         if (!messages || messages.length === 0) {
             container.innerHTML = `
                 <div class="flex items-center justify-center h-full text-gray-400">
@@ -351,47 +329,35 @@ class SimpleChat {
             return;
         }
         
-        // Build HTML string for all messages
+        // Build HTML for all messages
         let html = '';
-        
-        // Loop through each message
         messages.forEach(msg => {
-            // ================================================================
-            // CRITICAL FIX: PROPER MESSAGE ALIGNMENT LOGIC
-            // ================================================================
+            // ============================================
+            // CRITICAL: Message Alignment Logic
+            // ============================================
+            // Determine if this message was sent BY the current user
+            // We compare the message's sender_id with this.currentUserId
             
-            // EXPLANATION:
-            // - msg.sender_id is the ID of who sent this message (comes from database)
-            // - window.currentUserId is the ID of the logged-in user (set in dashboard.php)
-            // - parseInt() converts strings to numbers for reliable comparison
-            // - If sender_id matches currentUserId, this is OUR message (right side)
-            // - If sender_id doesn't match, it's THEIR message (left side)
+            const senderId = parseInt(msg.sender_id);  // Convert to number
+            const isSent = senderId === parseInt(this.currentUserId); // Compare as numbers
             
-            const isSent = parseInt(msg.sender_id) === parseInt(window.currentUserId);
-            
-            // IMPORTANT: Debug logging to verify IDs
+            // Debug log to verify alignment
             console.log('Message alignment check:', {
-                senderId: msg.sender_id,
-                senderIdType: typeof msg.sender_id,
-                currentUserId: window.currentUserId,
-                currentUserIdType: typeof window.currentUserId,
+                senderId: senderId,
+                senderIdType: typeof senderId,
+                currentUserId: this.currentUserId,
+                currentUserIdType: typeof this.currentUserId,
                 isSent: isSent,
-                messagePreview: msg.message_text.substring(0, 20)
+                message: msg.message_text
             });
             
-            // Set alignment classes based on who sent the message
-            // justify-end = align right (sent messages)
-            // justify-start = align left (received messages)
-            const alignClass = isSent ? 'justify-end' : 'justify-start';
-            
-            // Set background color based on who sent the message
-            // Purple background for sent messages
-            // White background with border for received messages
+            // Set CSS classes based on who sent the message
+            const alignClass = isSent ? 'justify-end' : 'justify-start';  // Right or left
             const bgClass = isSent 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-white text-gray-800 border border-gray-200';
+                ? 'bg-purple-600 text-white'           // Sent: purple background
+                : 'bg-white text-gray-800 border border-gray-200'; // Received: white background
             
-            // Build the HTML for this message
+            // Build message bubble HTML
             html += `
                 <div class="flex ${alignClass} mb-4">
                     <div class="max-w-xs md:max-w-md ${bgClass} rounded-lg p-3 shadow">
@@ -405,31 +371,30 @@ class SimpleChat {
             `;
         });
         
-        // Set the built HTML into the container
+        // Insert all messages into the container
         container.innerHTML = html;
         
-        // Scroll to bottom to show newest messages
-        // setTimeout ensures DOM has updated before scrolling
+        // Scroll to bottom to show latest messages
         setTimeout(() => {
             container.scrollTop = container.scrollHeight;
         }, 100);
     }
 
-    // ------------------------------------------------------------------------
-    // SEND MESSAGE
-    // ------------------------------------------------------------------------
-    // This sends a message to the server via AJAX
+    // ============================================
+    // Send Message
+    // ============================================
+    // Sends a message to the server
     async sendMessage() {
         console.log('📤 Sending message...');
         
         const messageInput = document.getElementById('messageInput');
         const receiverInput = document.getElementById('receiverId');
         
-        // trim() removes whitespace from start and end
+        // Get message text and receiver ID
         const message = messageInput?.value.trim();
         const receiverId = receiverInput?.value;
         
-        // Validate input
+        // Validate inputs
         if (!message || !receiverId) {
             console.warn('❌ Cannot send: missing message or receiver');
             return;
@@ -438,30 +403,32 @@ class SimpleChat {
         console.log('💬 Sending to:', receiverId, 'Message:', message);
         
         try {
-            // FormData is used to send POST data (like a form submission)
+            // Create form data for POST request
             const formData = new FormData();
             formData.append('receiver_id', receiverId);
             formData.append('message_text', message);
-            formData.append('csrf_token', window.csrfToken || '');
+            formData.append('csrf_token', typeof csrfToken !== 'undefined' ? csrfToken : '');
             
-            // Send POST request to server
+            // Send POST request
             const response = await fetch(`chat/send_message.php`, {
                 method: 'POST',
                 body: formData
             });
             
+            // Check if request was successful
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
+            // Parse response
             const data = await response.json();
             console.log('📨 Send response:', data);
             
             if (data.success) {
-                // Clear the input field
+                // Clear input field
                 messageInput.value = '';
                 
-                // Reload messages to show the new message
+                // Reload messages to show the new one
                 this.loadMessages(receiverId);
             } else {
                 alert('Failed to send message: ' + (data.message || 'Unknown error'));
@@ -472,37 +439,36 @@ class SimpleChat {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // START POLLING
-    // ------------------------------------------------------------------------
-    // This checks for new messages every 3 seconds
+    // ============================================
+    // Start Polling
+    // ============================================
+    // Checks for new messages every 3 seconds
     startPolling(userId) {
-        // Clear any existing polling interval
+        // Clear any existing poll interval
         if (this.pollInterval) {
             clearInterval(this.pollInterval);
         }
         
-        // setInterval() runs a function repeatedly at specified interval
-        // Returns an ID that can be used with clearInterval() to stop it
+        // Set up new polling interval
         this.pollInterval = setInterval(() => {
-            // Only poll if we're still in the same chat
+            // Only poll if we're still chatting with this user
             if (this.currentChatUser === userId) {
                 this.loadMessages(userId);
             }
-        }, 3000); // 3000 milliseconds = 3 seconds
+        }, 3000); // Check every 3 seconds
     }
 
-    // ------------------------------------------------------------------------
-    // CLEAR CHAT
-    // ------------------------------------------------------------------------
-    // This closes the current chat and resets the interface
+    // ============================================
+    // Clear Chat
+    // ============================================
+    // Closes the current chat and returns to empty state
     clearChat() {
         console.log('🧹 Clearing chat...');
         
-        // Reset current chat user
+        // Clear current chat user
         this.currentChatUser = null;
         
-        // Stop polling for new messages
+        // Stop polling
         if (this.pollInterval) {
             clearInterval(this.pollInterval);
             this.pollInterval = null;
@@ -512,7 +478,7 @@ class SimpleChat {
         const inputArea = document.getElementById('messageInputArea');
         const header = document.getElementById('chatHeader');
         
-        // Show placeholder message
+        // Reset messages area
         if (container) {
             container.innerHTML = `
                 <div class="flex items-center justify-center h-full text-gray-400">
@@ -527,7 +493,7 @@ class SimpleChat {
             `;
         }
         
-        // Hide message input area
+        // Hide input area
         if (inputArea) inputArea.classList.add('hidden');
         
         // Reset header
@@ -545,22 +511,20 @@ class SimpleChat {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // ESCAPE HTML
-    // ------------------------------------------------------------------------
-    // This prevents XSS (Cross-Site Scripting) attacks by escaping HTML
-    // For example: <script> becomes &lt;script&gt; (harmless text)
+    // ============================================
+    // Utility: Escape HTML
+    // ============================================
+    // Prevents XSS attacks by escaping HTML characters
     escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text; // textContent auto-escapes
+        div.textContent = text;
         return div.innerHTML;
     }
 
-    // ------------------------------------------------------------------------
-    // FORMAT TIME
-    // ------------------------------------------------------------------------
-    // This converts timestamps to human-readable format
-    // Examples: "Just now", "5m ago", "14:30", "Jan 15"
+    // ============================================
+    // Utility: Format Time
+    // ============================================
+    // Converts timestamp to human-readable format
     formatTime(timestamp) {
         if (!timestamp) return 'Just now';
         
@@ -571,10 +535,9 @@ class SimpleChat {
             if (timestamp instanceof Date) {
                 date = timestamp;
             } else if (typeof timestamp === 'string') {
-                // Try parsing the timestamp
                 date = new Date(timestamp);
                 
-                // If invalid, try replacing space with T (ISO format)
+                // Try alternative format if invalid
                 if (isNaN(date.getTime())) {
                     date = new Date(timestamp.replace(' ', 'T'));
                 }
@@ -582,23 +545,23 @@ class SimpleChat {
                 date = new Date(timestamp);
             }
             
-            // Validate date
+            // Check if date is valid
             if (isNaN(date.getTime())) {
                 console.warn('Invalid date:', timestamp);
                 return 'Recently';
             }
             
             const now = new Date();
-            const diff = now - date; // Difference in milliseconds
+            const diff = now - date;
             
             // Show relative time for recent messages
-            if (diff < 60000) return 'Just now'; // Less than 1 minute
-            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago'; // Less than 1 hour
-            if (diff < 86400000) { // Less than 24 hours
+            if (diff < 60000) return 'Just now';                          // < 1 minute
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago'; // < 1 hour
+            if (diff < 86400000) {                                         // < 1 day
                 return date.toLocaleTimeString('en-US', { 
                     hour: '2-digit', 
                     minute: '2-digit',
-                    hour12: false // 24-hour format
+                    hour12: false 
                 });
             }
             
@@ -616,16 +579,13 @@ class SimpleChat {
     }
 }
 
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-// This code runs when the script loads
-
+// ============================================
+// Initialize Chat When Page Loads
+// ============================================
 console.log('🔧 Setting up DOM ready listener...');
 
-// Function to initialize the chat system
 function initializeChat() {
-    // Prevent multiple initializations (defensive programming)
+    // Prevent multiple initializations
     if (window.simpleChat) {
         console.warn('⚠️ simpleChat already initialized, skipping...');
         return;
@@ -634,8 +594,7 @@ function initializeChat() {
     try {
         console.log('🎉 DOM fully loaded - initializing chat...');
         
-        // Create global SimpleChat instance
-        // This makes it accessible from anywhere: window.simpleChat
+        // Create new SimpleChat instance
         window.simpleChat = new SimpleChat();
         
         console.log('✅ simpleChat initialized globally');
@@ -644,13 +603,11 @@ function initializeChat() {
     }
 }
 
-// Check document ready state
-// readyState can be: 'loading', 'interactive', or 'complete'
+// Initialize when DOM is ready
 if (document.readyState === 'loading') {
-    // DOM not yet loaded, wait for DOMContentLoaded event
+    // DOM still loading, wait for it
     document.addEventListener('DOMContentLoaded', initializeChat);
 } else {
     // DOM already loaded, initialize immediately
-    // setTimeout ensures any other scripts have finished
     setTimeout(initializeChat, 100);
 }
