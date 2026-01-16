@@ -80,6 +80,7 @@ scrollToBottom(smooth = true) {
     }
 }
 
+
 // Add pull-to-refresh functionality
 initPullToRefresh() {
     const chatMessages = document.getElementById('chatMessages');
@@ -671,19 +672,6 @@ if (document.readyState === 'loading') {
 // Add to SimpleChat class
 
 // Improve scroll behavior for mobile
-scrollToBottom(smooth = true) {
-    const container = document.getElementById('chatMessages');
-    if (!container) return;
-    
-    if (smooth && 'scrollBehavior' in document.documentElement.style) {
-        container.scrollTo({
-            top: container.scrollHeight,
-            behavior: 'smooth'
-        });
-    } else {
-        container.scrollTop = container.scrollHeight;
-    }
-}
 
 // Add pull-to-refresh functionality
 initPullToRefresh() {
