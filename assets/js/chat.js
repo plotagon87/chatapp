@@ -63,6 +63,63 @@ class SimpleChat {
         
         // Initialize the chat interface
         this.init();
+        // Add to SimpleChat class
+
+// Improve scroll behavior for mobile
+scrollToBottom(smooth = true) {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    
+    if (smooth && 'scrollBehavior' in document.documentElement.style) {
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
+    } else {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Add pull-to-refresh functionality
+initPullToRefresh() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    let touchStartY = 0;
+    let pulling = false;
+    
+    chatMessages.addEventListener('touchstart', (e) => {
+        if (chatMessages.scrollTop === 0) {
+            touchStartY = e.touches[0].clientY;
+            pulling = true;
+        }
+    });
+    
+    chatMessages.addEventListener('touchmove', (e) => {
+        if (!pulling) return;
+        
+        const touchY = e.touches[0].clientY;
+        const pullDistance = touchY - touchStartY;
+        
+        if (pullDistance > 100 && this.currentChatUser) {
+            // Refresh messages
+            this.loadMessages(this.currentChatUser);
+            pulling = false;
+        }
+    });
+    
+        chatMessages.addEventListener('touchend', () => {
+            pulling = false;
+        });
+    }
+
+    // Call in init()
+    init() {
+        console.log('🔄 Initializing chat...');
+        this.bindEvents();
+        this.initPullToRefresh(); // Add this
+        console.log('✅ Chat initialized');
+    }
     }
 
     init() {
@@ -610,4 +667,61 @@ if (document.readyState === 'loading') {
 } else {
     // DOM already loaded, initialize immediately
     setTimeout(initializeChat, 100);
+}
+// Add to SimpleChat class
+
+// Improve scroll behavior for mobile
+scrollToBottom(smooth = true) {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    
+    if (smooth && 'scrollBehavior' in document.documentElement.style) {
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
+    } else {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Add pull-to-refresh functionality
+initPullToRefresh() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    let touchStartY = 0;
+    let pulling = false;
+    
+    chatMessages.addEventListener('touchstart', (e) => {
+        if (chatMessages.scrollTop === 0) {
+            touchStartY = e.touches[0].clientY;
+            pulling = true;
+        }
+    });
+    
+    chatMessages.addEventListener('touchmove', (e) => {
+        if (!pulling) return;
+        
+        const touchY = e.touches[0].clientY;
+        const pullDistance = touchY - touchStartY;
+        
+        if (pullDistance > 100 && this.currentChatUser) {
+            // Refresh messages
+            this.loadMessages(this.currentChatUser);
+            pulling = false;
+        }
+    });
+    
+    chatMessages.addEventListener('touchend', () => {
+        pulling = false;
+    });
+}
+
+// Call in init()
+init() {
+    console.log('🔄 Initializing chat...');
+    this.bindEvents();
+    this.initPullToRefresh(); // Add this
+    console.log('✅ Chat initialized');
 }
