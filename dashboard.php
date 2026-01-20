@@ -277,6 +277,78 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         textarea {
             font-size: 16px !important;
         }
+        
+        /* ============================================ */
+        /* EMOJI PICKER STYLES */
+        /* ============================================ */
+        #emojiPicker {
+            /* Position emoji picker above input */
+            position: absolute;
+            bottom: 70px;
+            left: 10px;
+            z-index: 100;
+        }
+        
+        #emojiPicker::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #emojiPicker::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        #emojiPicker::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        #emojiPicker::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .emoji-btn:hover {
+            transform: scale(1.2);
+            transition: transform 0.1s;
+        }
+        
+        /* ============================================ */
+        /* FILE UPLOAD MODAL STYLES */
+        /* ============================================ */
+        .file-category-tab {
+            transition: all 0.3s ease;
+        }
+        
+        .file-preview-item {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* ============================================ */
+        /* MESSAGE STYLES (Enhanced for Emojis) */
+        /* ============================================ */
+        .message-bubble {
+            word-break: break-word;
+            /* Ensure emojis render at proper size */
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        /* Make standalone emojis larger */
+        .message-bubble:has(> :only-child) {
+            font-size: 48px;
+            line-height: 1;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -513,30 +585,44 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                         </div>
                     </div>
 
-                    <!-- Message Input Area -->
-                    <div id="messageInputArea" class="hidden border-t border-gray-200 p-3 lg:p-4 bg-white rounded-b-lg">
-                        <form id="messageForm" class="flex items-end space-x-2 lg:space-x-3">
-                            <input type="hidden" id="receiverId" value="">
-                            
-                            <!-- Text Input -->
-                            <input 
-                                type="text" 
-                                id="messageInput" 
-                                placeholder="Type a message..." 
-                                class="flex-1 px-3 py-2 lg:px-4 lg:py-2 text-sm lg:text-base border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                autocomplete="off"
-                            >
-                            
-                            <!-- Send Button -->
-                            <button 
-                                type="submit" 
-                                class="bg-purple-600 text-white p-3 lg:p-2 rounded-full hover:bg-purple-700 transition duration-200 flex-shrink-0">
-                                <svg class="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                </svg>
-                            </button>
-                        </form>
-                    </div>
+                                                <!-- Message Input Area -->
+                            <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
+                                <form id="messageForm" class="flex items-center space-x-2">
+                                    <input type="hidden" id="receiverId" value="">
+                                    
+                                    <!-- File Upload Button -->
+                                    <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <!-- Emoji Button -->
+                                    <button type="button" id="emojiBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <!-- Message Input -->
+                                    <input 
+                                        type="text" 
+                                        id="messageInput" 
+                                        placeholder="Type a message..." 
+                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        autocomplete="off"
+                                    >
+                                    
+                                    <!-- Send Button -->
+                                    <button 
+                                        type="submit" 
+                                        class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200 flex-shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
                 </div>
             </div>
         </div>
