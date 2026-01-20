@@ -589,6 +589,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                             <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
                                 <form id="messageForm" class="flex items-center space-x-2">
                                     <input type="hidden" id="receiverId" value="">
+                                    <input type="file" id="fileInput" class="hidden" accept="*">
                                     
                                     <!-- File Upload Button -->
                                     <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">

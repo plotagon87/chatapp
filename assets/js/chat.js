@@ -269,18 +269,37 @@ class SimpleChat {
     }
 
     // ============================================
+    // PART 2: EMOJI PICKER
+    // Full emoji picker with categories, search, and insertion
+    // ============================================
+    
+    // ============================================
     // EMOJI PICKER INITIALIZATION
     // Sets up the emoji selection feature
     // ============================================
     initEmojiPicker() {
-        // Define emoji categories
-        // Each category contains an array of emoji characters
-        this.emojis = {
-            'Smileys': ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔'],
-            'Gestures': ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤝', '🙏', '💪'],
-            'Hearts': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
-            'Objects': ['📱', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '📷', '📸', '📹', '🎥', '📞', '☎️', '📺', '📻', '🎙️', '⏰', '🔋', '🔌', '💡', '🔦'],
-            'Symbols': ['✅', '❌', '⭐', '🌟', '💫', '✨', '🔥', '💯', '🎉', '🎊', '🎈', '🎁', '🏆', '🥇', '🥈', '🥉', '⚡', '💥']
+        // Define emoji categories with comprehensive emoji sets
+        this.emojiCategories = {
+            'Smileys': {
+                emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣', '😥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤮', '🤢', '🤮', '🤮', '😵', '🤯'],
+                icon: '😊'
+            },
+            'Gestures': {
+                emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘', '🤙', '👍', '👎', '👊', '✊', '👏', '🙌', '👐', '🫲', '🫳', '🤲', '🤝', '🤜', '🤛', '🦵', '🦶', '👂', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄'],
+                icon: '👍'
+            },
+            'Hearts': {
+                emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '💌', '💋'],
+                icon: '❤️'
+            },
+            'Objects': {
+                emojis: ['📱', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '📷', '📸', '📹', '🎥', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '⌚', '📡', '📢', '📣', '📯', '🔔', '🔕', '🎼', '🎵', '🎶', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍️', '🏎️', '🛵', '🦯', '🦽', '🦼', '🛺', '🚲', '🛴', '🛹', '🛼', '🚏', '⛽', '🚨', '🚥', '🚦', '🛑', '🚧', '⚓', '⛵', '🚤', '🛶', '🛳️', '🛲', '🛴', '🛵', '🚣', '🚟', '🚠', '🚡', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋', '🚌', '🚎', '🚐', '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘', '🚙', '🚚', '🚛', '🚜', '🏎️', '🏍️', '🛺', '🚲', '🛴', '🛵', '🦯', '🦽', '🦼', '🛼'],
+                icon: '🎮'
+            },
+            'Symbols': {
+                emojis: ['✅', '❌', '⭐', '🌟', '💫', '✨', '⚡', '☄️', '💥', '🔥', '🌪️', '🌈', '☀️', '🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '💧', '💦', '☔', '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥑', '🍆', '🍅', '🌶️', '🌽', '🥒', '🥬', '🥦', '🧄', '🧅', '🍄', '🥜', '🌰', '🍞', '🥐', '🥖', '🥨', '🥯', '🥞', '🧇', '🥚', '🍳', '🧈', '🥞', '🥓', '🥔', '🍟', '🍛', '🍝', '🍜', '🍲', '🍥', '🥠', '🥮', '🍤', '🍣', '🍢', '🍡', '🍧', '🍨', '🍦', '🍰', '🎂', '🧁', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰', '🍯', '🥛', '🥤', '☕', '🍵', '🍶', '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂', '🥃', '🥤', '🍶', '🍵', '☕', '🍼', '🥛', '🍶', '🍾', '🎊', '🎉', '🎈', '🎀', '🎁', '🏆', '🥇', '🥈', '🥉', '⚽', '⚾', '🥎', '🎾', '🏐', '🏈', '🏉', '🥏', '🎳', '🎣', '🎽', '🎿', '⛷️', '🛷', '🛸', '🥌', '🎯', '🪀', '🪁', '🎮', '🎲', '🧩'],
+                icon: '✨'
+            }
         };
         
         // Create the emoji button HTML
@@ -293,7 +312,7 @@ class SimpleChat {
     // ============================================
     createEmojiButton() {
         this.emojiButtonHTML = `
-            <button type="button" id="emojiPickerBtn" class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-purple-50 transition">
+            <button type="button" id="emojiPickerBtn" class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-purple-50 transition" title="Add emoji">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
@@ -302,8 +321,8 @@ class SimpleChat {
     }
 
     // ============================================
-    // SHOW EMOJI PICKER
-    // Displays the emoji selection popup
+    // SHOW EMOJI PICKER WITH CATEGORIES
+    // Displays the emoji selection popup with tabs
     // ============================================
     showEmojiPicker() {
         // Check if picker already exists (to toggle it)
@@ -316,40 +335,98 @@ class SimpleChat {
         // Create picker modal
         const picker = document.createElement('div');
         picker.id = 'emojiPickerModal';
-        picker.className = 'fixed bottom-20 right-4 md:bottom-24 md:right-8 bg-white rounded-lg shadow-2xl z-50 w-80 max-h-96 overflow-hidden border border-gray-200';
+        picker.className = 'fixed bottom-20 right-4 md:bottom-24 md:right-8 bg-white rounded-lg shadow-2xl z-50 w-96 max-h-96 overflow-hidden border border-gray-200';
         
         // Build HTML for emoji picker
-        let html = '<div class="p-4">';
+        let html = '<div class="flex flex-col h-full">';
         
-        // Header with close button
-        html += '<div class="flex justify-between items-center mb-3">';
-        html += '<h3 class="font-bold text-gray-800">Emojis</h3>';
-        html += '<button onclick="window.simpleChat.hideEmojiPicker()" class="text-gray-500 hover:text-gray-700">';
+        // Header with title and close button
+        html += '<div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">';
+        html += '<h3 class="font-bold text-gray-800 text-lg">Emojis</h3>';
+        html += '<button onclick="window.simpleChat.hideEmojiPicker()" class="text-gray-500 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50">';
         html += '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
         html += '</button></div>';
         
-        // Scrollable emoji grid
-        html += '<div class="overflow-y-auto max-h-80 space-y-4">';
+        // Category tabs
+        html += '<div class="flex border-b border-gray-200 bg-gray-50 px-2 py-2">';
+        for (const [category, data] of Object.entries(this.emojiCategories)) {
+            html += `<button type="button" onclick="window.simpleChat.switchEmojiCategory('${category}')" class="emoji-category-tab flex-1 px-2 py-2 text-center rounded hover:bg-gray-200 transition text-2xl" data-category="${category}" title="${category}">`;
+            html += `${data.icon}`;
+            html += `</button>`;
+        }
+        html += '</div>';
         
-        // Loop through each emoji category
-        for (const [category, emojis] of Object.entries(this.emojis)) {
-            html += `<div>`;
-            html += `<h4 class="text-xs font-semibold text-gray-500 mb-2">${category}</h4>`;
-            html += `<div class="grid grid-cols-8 gap-2">`;
+        // Scrollable emoji grid container
+        html += '<div class="overflow-y-auto flex-1 p-4">';
+        
+        // Create grid for first category (Smileys)
+        const firstCategory = Object.keys(this.emojiCategories)[0];
+        html += `<div id="emoji-grid-${firstCategory}" class="emoji-grid grid grid-cols-8 gap-2">`;
+        
+        this.emojiCategories[firstCategory].emojis.forEach(emoji => {
+            html += `<button type="button" onclick="window.simpleChat.insertEmoji('${emoji}')" class="emoji-btn text-2xl hover:bg-gray-100 hover:scale-125 rounded p-1 transition active" title="${emoji}">`;
+            html += `${emoji}`;
+            html += `</button>`;
+        });
+        
+        html += '</div>';
+        
+        // Add hidden grids for other categories
+        Object.keys(this.emojiCategories).slice(1).forEach(category => {
+            html += `<div id="emoji-grid-${category}" class="emoji-grid hidden grid grid-cols-8 gap-2">`;
             
-            // Add each emoji as a clickable button
-            emojis.forEach(emoji => {
-                html += `<button type="button" onclick="window.simpleChat.insertEmoji('${emoji}')" class="text-2xl hover:bg-gray-100 rounded p-1 transition">${emoji}</button>`;
+            this.emojiCategories[category].emojis.forEach(emoji => {
+                html += `<button type="button" onclick="window.simpleChat.insertEmoji('${emoji}')" class="emoji-btn text-2xl hover:bg-gray-100 hover:scale-125 rounded p-1 transition" title="${emoji}">`;
+                html += `${emoji}`;
+                html += `</button>`;
             });
             
-            html += `</div></div>`;
-        }
+            html += '</div>';
+        });
         
-        html += '</div></div>';
+        html += '</div>';
+        html += '</div>';
+        
         picker.innerHTML = html;
         
         // Add picker to page
         document.body.appendChild(picker);
+        
+        // Add event listeners to category tabs
+        document.querySelectorAll('.emoji-category-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+            });
+        });
+    }
+
+    // ============================================
+    // SWITCH EMOJI CATEGORY
+    // Handles tab switching in emoji picker
+    // @param {string} category - Category name to switch to
+    // ============================================
+    switchEmojiCategory(category) {
+        // Hide all grids
+        document.querySelectorAll('.emoji-grid').forEach(grid => {
+            grid.classList.add('hidden');
+        });
+        
+        // Deactivate all tabs
+        document.querySelectorAll('.emoji-category-tab').forEach(tab => {
+            tab.classList.remove('active', 'bg-purple-100');
+        });
+        
+        // Show selected grid
+        const selectedGrid = document.getElementById(`emoji-grid-${category}`);
+        if (selectedGrid) {
+            selectedGrid.classList.remove('hidden');
+        }
+        
+        // Highlight selected tab
+        const selectedTab = document.querySelector(`.emoji-category-tab[data-category="${category}"]`);
+        if (selectedTab) {
+            selectedTab.classList.add('active', 'bg-purple-100');
+        }
     }
 
     // ============================================
@@ -388,24 +465,80 @@ class SimpleChat {
     }
 
     // ============================================
+    // ============================================
+    // PART 3: FILE UPLOAD MODAL
+    // Complete file upload with categorization and preview
+    // ============================================
+    
+    // ============================================
     // FILE UPLOAD INITIALIZATION
     // Sets up file attachment feature
     // ============================================
     bindFileUpload() {
         // HTML for file upload button
         this.fileUploadButtonHTML = `
-            <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-purple-50 transition">
+            <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-purple-50 transition" title="Attach file">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
                 </svg>
             </button>
-            <input type="file" id="fileInput" class="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.zip">
+            <input type="file" id="fileInput" class="hidden" accept="*">
         `;
+        
+        // Define file categories
+        this.fileCategories = {
+            'Photos': {
+                icon: '📷',
+                extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
+                mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'],
+                maxSize: 10485760 // 10MB
+            },
+            'Documents': {
+                icon: '📄',
+                extensions: ['pdf', 'doc', 'docx', 'txt', 'xlsx', 'xls', 'ppt', 'pptx'],
+                mimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+                maxSize: 10485760
+            },
+            'Audio': {
+                icon: '🎵',
+                extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac'],
+                mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac'],
+                maxSize: 10485760
+            },
+            'Other': {
+                icon: '📎',
+                extensions: ['zip', 'rar', '7z', 'tar', 'gz', 'exe', 'sh'],
+                mimeTypes: ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed'],
+                maxSize: 10485760
+            }
+        };
+        
+        this.selectedFiles = {}; // Store selected files by category
+        
+        // Bind emoji button click handler
+        const emojiBtn = document.getElementById('emojiBtn');
+        if (emojiBtn) {
+            emojiBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showEmojiPicker();
+            });
+        }
+        
+        // Bind file upload button click handler
+        const fileUploadBtn = document.getElementById('fileUploadBtn');
+        if (fileUploadBtn) {
+            fileUploadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.currentChatUser) {
+                    this.showFileUploadModal(this.currentChatUser);
+                }
+            });
+        }
     }
 
     // ============================================
     // INITIALIZE FILE UPLOAD HANDLER
-    // Attaches event listeners for file upload
+    // Attaches event listeners for file upload modal
     // @param {number} receiverId - ID of user receiving the file
     // ============================================
     initFileUpload(receiverId) {
@@ -413,47 +546,466 @@ class SimpleChat {
         const fileInput = document.getElementById('fileInput');
         
         if (fileBtn && fileInput) {
-            // Click button triggers file selection dialog
-            fileBtn.onclick = () => fileInput.click();
-            
-            // When file is selected
-            fileInput.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                // Check file size (10MB limit = 10,485,760 bytes)
-                if (file.size > 10485760) {
-                    alert('File size exceeds 10MB limit');
-                    return;
-                }
-                
-                // Prepare file for upload
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('receiver_id', receiverId);
-                
-                try {
-                    // Upload file to server
-                    const response = await fetch('chat/upload_file.php', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        // Refresh messages to show uploaded file
-                        this.loadMessages(receiverId);
-                    } else {
-                        alert('Failed to upload file: ' + data.message);
-                    }
-                } catch (error) {
-                    console.error('File upload error:', error);
-                    alert('Failed to upload file');
-                }
-                
-                // Clear file input for next upload
-                fileInput.value = '';
+            // Click button opens upload modal instead of file dialog
+            fileBtn.onclick = (e) => {
+                e.preventDefault();
+                this.showFileUploadModal(receiverId);
             };
+        }
+    }
+
+    // ============================================
+    // SHOW FILE UPLOAD MODAL
+    // Displays modal with file category selection
+    // @param {number} receiverId - ID of recipient
+    // ============================================
+    showFileUploadModal(receiverId) {
+        // Check if modal already exists
+        const existing = document.getElementById('fileUploadModal');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+        
+        // Create modal element
+        const modal = document.createElement('div');
+        modal.id = 'fileUploadModal';
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 md:p-0';
+        
+        // Build modal HTML
+        let html = `
+            <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-screen md:max-h-[600px] flex flex-col overflow-hidden">
+                <!-- Modal Header -->
+                <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+                    <h2 class="text-2xl font-bold text-gray-800">Upload File</h2>
+                    <button onclick="window.simpleChat.hideFileUploadModal()" class="text-gray-500 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Modal Content -->
+                <div class="flex-1 overflow-y-auto flex flex-col md:flex-row">
+                    <!-- Category Tabs (Left Side) -->
+                    <div class="w-full md:w-32 flex flex-row md:flex-col border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
+        `;
+        
+        // Add category tabs
+        for (const [category, data] of Object.entries(this.fileCategories)) {
+            html += `
+                        <button type="button" 
+                                onclick="window.simpleChat.switchFileCategory('${category}')" 
+                                class="file-category-tab flex-1 md:flex-none px-4 py-4 text-center md:text-left border-b md:border-b-0 md:border-r-4 border-transparent hover:bg-gray-100 transition first-of-type:border-purple-500 first-of-type:bg-gray-100" 
+                                data-category="${category}">
+                            <span class="text-2xl block md:inline md:mr-2">${data.icon}</span>
+                            <span class="text-sm font-semibold text-gray-700 hidden md:inline">${category}</span>
+                        </button>
+            `;
+        }
+        
+        html += `
+                    </div>
+                    
+                    <!-- File Upload Area (Right Side) -->
+                    <div class="flex-1 p-6 flex flex-col">
+        `;
+        
+        // Add file upload areas for each category
+        for (const category of Object.keys(this.fileCategories)) {
+            html += `
+                        <div class="file-upload-area hidden flex-1 flex flex-col" data-category="${category}">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">${category}</h3>
+                            
+                            <!-- Drag and Drop Zone -->
+                            <div class="upload-zone flex-1 border-2 border-dashed border-purple-300 rounded-lg p-8 flex items-center justify-center bg-purple-50 hover:bg-purple-100 transition cursor-pointer" 
+                                 ondrop="window.simpleChat.handleFileDrop(event, '${category}')"
+                                 ondragover="event.preventDefault(); event.currentTarget.classList.add('bg-purple-100')"
+                                 ondragleave="event.currentTarget.classList.remove('bg-purple-100')">
+                                <div class="text-center">
+                                    <div class="text-4xl mb-3">${this.fileCategories[category].icon}</div>
+                                    <p class="text-gray-700 font-semibold mb-2">Drag files here</p>
+                                    <p class="text-sm text-gray-500 mb-4">or click to browse</p>
+                                    <button type="button" 
+                                            onclick="document.getElementById('fileInput-${category}').click()" 
+                                            class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition font-semibold">
+                                        Choose ${category}
+                                    </button>
+                                    <input type="file" 
+                                           id="fileInput-${category}" 
+                                           class="hidden" 
+                                           multiple
+                                           onchange="window.simpleChat.handleFileSelect(event, '${category}')"
+                                           accept="${this.fileCategories[category].extensions.map(ext => '.' + ext).join(', ')}">
+                                    <p class="text-xs text-gray-500 mt-3">Max 10MB per file</p>
+                                </div>
+                            </div>
+                            
+                            <!-- File Preview Area -->
+                            <div class="file-preview-container mt-6 max-h-40 overflow-y-auto">
+                                <div id="preview-${category}" class="space-y-2"></div>
+                            </div>
+                        </div>
+            `;
+        }
+        
+        html += `
+                    </div>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="border-t border-gray-200 p-6 bg-gray-50 flex justify-end space-x-4">
+                    <button type="button" 
+                            onclick="window.simpleChat.hideFileUploadModal()" 
+                            class="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition font-semibold">
+                        Cancel
+                    </button>
+                    <button type="button" 
+                            onclick="window.simpleChat.uploadSelectedFiles(${receiverId})" 
+                            class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+                        Send Files
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modal.innerHTML = html;
+        document.body.appendChild(modal);
+        
+        // Show first category by default
+        const firstCategory = Object.keys(this.fileCategories)[0];
+        this.switchFileCategory(firstCategory);
+        
+        // Allow clicking outside modal to close it
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideFileUploadModal();
+            }
+        });
+    }
+
+    // ============================================
+    // SWITCH FILE CATEGORY
+    // Handles category tab switching
+    // @param {string} category - Category name
+    // ============================================
+    switchFileCategory(category) {
+        // Hide all upload areas
+        document.querySelectorAll('.file-upload-area').forEach(area => {
+            area.classList.add('hidden');
+        });
+        
+        // Deactivate all category tabs
+        document.querySelectorAll('.file-category-tab').forEach(tab => {
+            tab.classList.remove('border-purple-500', 'bg-gray-100');
+            tab.classList.add('border-transparent');
+        });
+        
+        // Show selected category
+        const selectedArea = document.querySelector(`.file-upload-area[data-category="${category}"]`);
+        if (selectedArea) {
+            selectedArea.classList.remove('hidden');
+        }
+        
+        // Highlight selected tab
+        const selectedTab = document.querySelector(`.file-category-tab[data-category="${category}"]`);
+        if (selectedTab) {
+            selectedTab.classList.add('border-purple-500', 'bg-gray-100');
+            selectedTab.classList.remove('border-transparent');
+        }
+    }
+
+    // ============================================
+    // HANDLE FILE SELECT
+    // Processes files selected through file input
+    // @param {Event} event - File input change event
+    // @param {string} category - File category
+    // ============================================
+    handleFileSelect(event, category) {
+        const files = Array.from(event.target.files);
+        this.processFiles(files, category);
+    }
+
+    // ============================================
+    // HANDLE FILE DROP
+    // Processes files dropped into the zone
+    // @param {DragEvent} event - Drag drop event
+    // @param {string} category - File category
+    // ============================================
+    handleFileDrop(event, category) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('bg-purple-100');
+        
+        const files = Array.from(event.dataTransfer.files);
+        this.processFiles(files, category);
+    }
+
+    // ============================================
+    // PROCESS FILES
+    // Validates and previews selected files
+    // @param {Array} files - Array of File objects
+    // @param {string} category - File category
+    // ============================================
+    processFiles(files, category) {
+        // Initialize category in selectedFiles if needed
+        if (!this.selectedFiles[category]) {
+            this.selectedFiles[category] = [];
+        }
+        
+        // Validate and add each file
+        files.forEach(file => {
+            // Check file size (10MB limit)
+            if (file.size > 10485760) {
+                alert(`File "${file.name}" exceeds 10MB limit`);
+                return;
+            }
+            
+            // Check file type
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            const categoryData = this.fileCategories[category];
+            
+            if (!categoryData.extensions.includes(fileExt)) {
+                alert(`File "${file.name}" is not a valid ${category} file`);
+                return;
+            }
+            
+            // Add to selected files (prevent duplicates)
+            if (!this.selectedFiles[category].find(f => f.name === file.name)) {
+                this.selectedFiles[category].push(file);
+            }
+        });
+        
+        // Update preview
+        this.updateFilePreview(category);
+    }
+
+    // ============================================
+    // UPDATE FILE PREVIEW
+    // Shows thumbnails/list of selected files
+    // @param {string} category - File category
+    // ============================================
+    updateFilePreview(category) {
+        const previewContainer = document.getElementById(`preview-${category}`);
+        if (!previewContainer) return;
+        
+        const files = this.selectedFiles[category] || [];
+        
+        if (files.length === 0) {
+            previewContainer.innerHTML = '';
+            return;
+        }
+        
+        let html = '<h4 class="font-semibold text-gray-700 mb-2">Selected Files:</h4>';
+        
+        files.forEach((file, index) => {
+            // Get file icon based on type
+            let fileIcon = '📄';
+            if (category === 'Photos') fileIcon = '🖼️';
+            else if (category === 'Audio') fileIcon = '🎵';
+            else if (category === 'Documents') fileIcon = '📋';
+            
+            // Format file size
+            const sizeKB = (file.size / 1024).toFixed(2);
+            
+            html += `
+                <div class="file-preview-item flex items-center justify-between bg-gray-100 rounded-lg p-3">
+                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                        <span class="text-2xl flex-shrink-0">${fileIcon}</span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold text-gray-800 truncate">${file.name}</p>
+                            <p class="text-xs text-gray-500">${sizeKB} KB</p>
+                        </div>
+                    </div>
+                    <button type="button" 
+                            onclick="window.simpleChat.removeFile('${category}', ${index})"
+                            class="text-red-600 hover:text-red-800 transition ml-2 flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        });
+        
+        previewContainer.innerHTML = html;
+    }
+
+    // ============================================
+    // REMOVE FILE
+    // Removes a file from the selection
+    // @param {string} category - File category
+    // @param {number} index - File index
+    // ============================================
+    removeFile(category, index) {
+        if (this.selectedFiles[category]) {
+            this.selectedFiles[category].splice(index, 1);
+            this.updateFilePreview(category);
+        }
+    }
+
+    // ============================================
+    // HIDE FILE UPLOAD MODAL
+    // Closes the file upload modal
+    // ============================================
+    hideFileUploadModal() {
+        const modal = document.getElementById('fileUploadModal');
+        if (modal) modal.remove();
+        
+        // Clear selected files
+        this.selectedFiles = {};
+    }
+
+    // ============================================
+    // PART 4: FILE HANDLING & UPLOAD
+    // Upload files to server with progress tracking
+    // ============================================
+    
+    // ============================================
+    // UPLOAD SELECTED FILES
+    // Uploads all selected files to server
+    // @param {number} receiverId - Recipient user ID
+    // ============================================
+    async uploadSelectedFiles(receiverId) {
+        // Collect all selected files from all categories
+        let allFiles = [];
+        for (const category in this.selectedFiles) {
+            allFiles = allFiles.concat(this.selectedFiles[category]);
+        }
+        
+        if (allFiles.length === 0) {
+            alert('No files selected');
+            return;
+        }
+        
+        try {
+            // Show progress indicator
+            this.showUploadProgress(allFiles.length);
+            
+            // Upload each file
+            let successCount = 0;
+            for (let i = 0; i < allFiles.length; i++) {
+                const file = allFiles[i];
+                const result = await this.uploadFile(file, receiverId);
+                
+                if (result) {
+                    successCount++;
+                }
+                
+                // Update progress
+                this.updateUploadProgress(i + 1, allFiles.length);
+            }
+            
+            // Hide progress and modal
+            this.hideUploadProgress();
+            this.hideFileUploadModal();
+            
+            // Reload messages to show new files
+            this.loadMessages(receiverId);
+            
+            // Show success message
+            if (successCount === allFiles.length) {
+                console.log(`✅ Successfully uploaded ${successCount} file(s)`);
+            } else {
+                alert(`Uploaded ${successCount} of ${allFiles.length} files`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Upload error:', error);
+            this.hideUploadProgress();
+            alert('Upload failed. Check console for details.');
+        }
+    }
+
+    // ============================================
+    // UPLOAD FILE
+    // Uploads a single file to server
+    // @param {File} file - File to upload
+    // @param {number} receiverId - Recipient ID
+    // @returns {Promise<boolean>} - Success or failure
+    // ============================================
+    async uploadFile(file, receiverId) {
+        try {
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('receiver_id', receiverId);
+            formData.append('csrf_token', window.csrfToken || '');
+            
+            // Upload to server
+            const response = await fetch('chat/upload_file.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log(`✅ Uploaded: ${file.name}`);
+                return true;
+            } else {
+                console.error(`❌ Upload failed for ${file.name}:`, data.message);
+                return false;
+            }
+        } catch (error) {
+            console.error(`❌ Error uploading ${file.name}:`, error);
+            return false;
+        }
+    }
+
+    // ============================================
+    // SHOW UPLOAD PROGRESS
+    // Displays upload progress indicator
+    // @param {number} totalFiles - Total files to upload
+    // ============================================
+    showUploadProgress(totalFiles) {
+        let progressBar = document.getElementById('uploadProgress');
+        if (progressBar) progressBar.remove();
+        
+        progressBar = document.createElement('div');
+        progressBar.id = 'uploadProgress';
+        progressBar.className = 'fixed bottom-20 right-4 bg-white rounded-lg shadow-2xl p-4 w-64 z-50 border border-gray-200';
+        progressBar.innerHTML = `
+            <div class="mb-2">
+                <h4 class="font-semibold text-gray-800 mb-2">Uploading files...</h4>
+                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div class="bg-gradient-to-r from-purple-500 to-blue-500 h-full w-0 transition-all duration-300" id="progressBar"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2"><span id="progressCount">0</span>/${totalFiles} files</p>
+            </div>
+        `;
+        
+        document.body.appendChild(progressBar);
+    }
+
+    // ============================================
+    // UPDATE UPLOAD PROGRESS
+    // Updates progress bar
+    // @param {number} current - Current file index
+    // @param {number} total - Total files
+    // ============================================
+    updateUploadProgress(current, total) {
+        const progressBar = document.getElementById('progressBar');
+        const progressCount = document.getElementById('progressCount');
+        
+        if (progressBar && progressCount) {
+            const percentage = (current / total) * 100;
+            progressBar.style.width = percentage + '%';
+            progressCount.textContent = current;
+        }
+    }
+
+    // ============================================
+    // HIDE UPLOAD PROGRESS
+    // Removes progress indicator
+    // ============================================
+    hideUploadProgress() {
+        const progressBar = document.getElementById('uploadProgress');
+        if (progressBar) {
+            setTimeout(() => progressBar.remove(), 500);
         }
     }
 
@@ -796,36 +1348,6 @@ class SimpleChat {
         const inputArea = document.getElementById('messageInputArea');
         if (inputArea) {
             inputArea.classList.remove('hidden');
-            
-            // Add emoji and file buttons if not already present
-            if (!document.getElementById('emojiPickerBtn')) {
-                const form = document.getElementById('messageForm');
-                if (form) {
-                    const container = form.querySelector('.flex');
-                    if (container) {
-                        // Add emoji button
-                        const emojiWrapper = document.createElement('div');
-                        emojiWrapper.innerHTML = this.emojiButtonHTML;
-                        container.insertBefore(emojiWrapper.firstElementChild, container.firstElementChild);
-                        
-                        // Attach emoji button click handler
-                        document.getElementById('emojiPickerBtn').addEventListener('click', () => {
-                            this.showEmojiPicker();
-                        });
-                        
-                        // Add file upload button
-                        const fileWrapper = document.createElement('div');
-                        fileWrapper.innerHTML = this.fileUploadButtonHTML;
-                        const fileBtn = fileWrapper.querySelector('button');
-                        const fileInput = fileWrapper.querySelector('input');
-                        container.insertBefore(fileBtn, container.firstElementChild);
-                        container.insertBefore(fileInput, container.firstElementChild);
-                        
-                        // Initialize file upload functionality
-                        this.initFileUpload(userId);
-                    }
-                }
-            }
         }
         
         // Set receiver ID in hidden input
@@ -839,6 +1361,9 @@ class SimpleChat {
         if (messageInput) {
             messageInput.focus();
         }
+        
+        // Initialize file upload functionality with the new receiver ID
+        this.initFileUpload(userId);
         
         // Load existing messages
         this.loadMessages(userId);
@@ -997,12 +1522,40 @@ class SimpleChat {
                 reactionsHTML = '<div class="message-reactions"></div>';
             }
             
+            // Handle file/image content
+            let fileHTML = '';
+            if (msg.message_type === 'image' && msg.file_path) {
+                // Display image preview
+                fileHTML = `
+                    <div class="mt-2">
+                        <img src="uploads/${msg.file_path}" alt="Image" class="max-w-xs rounded cursor-pointer hover:opacity-80 transition" onclick="window.open('uploads/${msg.file_path}', '_blank')">
+                    </div>
+                `;
+            } else if (msg.message_type === 'file' && msg.file_path) {
+                // Display file download link
+                const fileName = msg.file_path.split('/').pop();
+                const displayName = msg.message_text.replace('Shared a file: ', '') || fileName;
+                fileHTML = `
+                    <div class="mt-2">
+                        <a href="uploads/${msg.file_path}" download class="inline-flex items-center space-x-2 px-3 py-2 rounded bg-opacity-20 hover:bg-opacity-30 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8m0 8l-9-2m9 2l9-2m-9-8l-9 2m9-2l9 2m-9-2v8"></path>
+                            </svg>
+                            <span class="text-sm font-medium truncate" title="${displayName}">${displayName}</span>
+                        </a>
+                    </div>
+                `;
+            }
+            
             // Build complete message HTML
             html += `
                 <div class="flex ${alignClass} mb-4" data-message-id="${msg.message_id}">
                     <div class="message-bubble ${bgClass} rounded-lg p-3 shadow relative group">
                         <!-- Message Text -->
                         <p class="break-words">${this.escapeHtml(msg.message_text)}</p>
+                        
+                        <!-- File or Image Display -->
+                        ${fileHTML}
                         
                         <!-- Timestamp and Read Status -->
                         <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1">
