@@ -39,9 +39,8 @@ $countStmt->execute($params);
 $totalUsers = (int)$countStmt->fetchColumn();
 
 // Get online users with pagination
-$usersStmt = $conn->prepare("SELECT * FROM users $whereClause ORDER BY last_seen DESC LIMIT ? OFFSET ?");
-$params[] = $perPage;
-$params[] = $offset;
+// Use direct interpolation for LIMIT/OFFSET since they are safe integers and PDO::ATTR_EMULATE_PREPARES is false
+$usersStmt = $conn->prepare("SELECT * FROM users $whereClause ORDER BY last_seen DESC LIMIT $perPage OFFSET $offset");
 $usersStmt->execute($params);
 $users = $usersStmt->fetchAll();
 

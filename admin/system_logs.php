@@ -92,11 +92,10 @@ $logsStmt = $conn->prepare("
     LEFT JOIN users u ON al.user_id = u.user_id 
     $whereClause 
     ORDER BY al.created_at DESC 
-    LIMIT ? OFFSET ?
+    LIMIT $perPage OFFSET $offset
 ");
 
-$params[] = $perPage;
-$params[] = $offset;
+// Use direct interpolation for LIMIT/OFFSET since they are safe integers and PDO::ATTR_EMULATE_PREPARES is false
 $logsStmt->execute($params);
 $logs = $logsStmt->fetchAll();
 

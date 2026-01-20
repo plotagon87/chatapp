@@ -9,6 +9,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+// Validate CSRF token
+$csrf_token = isset($_POST['csrf_token']) ? $_POST['csrf_token'] : '';
+if (!validateCsrfToken($csrf_token)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid security token']);
+    exit();
+}
+
 $sender_id = $_SESSION['user_id'];
 $receiver_id = isset($_POST['receiver_id']) ? (int)$_POST['receiver_id'] : 0;
 $message_text = isset($_POST['message_text']) ? sanitize($_POST['message_text']) : '';

@@ -75,6 +75,16 @@ function getSetting($key, $default = null) {
 }
 
 /**
+ * Validate CSRF Token
+ */
+function validateCsrfToken($token) {
+    if (empty($token) || empty($_SESSION['csrf_token'])) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
  * Sanitize input data
  */
 function sanitize($data) {

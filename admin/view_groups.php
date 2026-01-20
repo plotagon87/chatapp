@@ -45,10 +45,9 @@ $groupsStmt = $conn->prepare("
     LEFT JOIN users u ON g.created_by = u.user_id 
     $whereClause 
     ORDER BY g.created_at DESC 
-    LIMIT ? OFFSET ?
+    LIMIT $perPage OFFSET $offset
 ");
-$params[] = $perPage;
-$params[] = $offset;
+// Use direct interpolation for LIMIT/OFFSET since they are safe integers and PDO::ATTR_EMULATE_PREPARES is false
 $groupsStmt->execute($params);
 $groups = $groupsStmt->fetchAll();
 ?>

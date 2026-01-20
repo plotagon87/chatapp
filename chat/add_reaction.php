@@ -9,6 +9,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+// Validate CSRF token
+$csrf_token = isset($_POST['csrf_token']) ? $_POST['csrf_token'] : '';
+if (!validateCsrfToken($csrf_token)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid security token']);
+    exit();
+}
+
 $message_id = isset($_POST['message_id']) ? (int)$_POST['message_id'] : 0;
 $reaction_type = isset($_POST['reaction_type']) ? sanitize($_POST['reaction_type']) : '';
 $action = isset($_POST['action']) ? sanitize($_POST['action']) : 'add'; // add or remove
