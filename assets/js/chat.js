@@ -1362,9 +1362,6 @@ class SimpleChat {
             messageInput.focus();
         }
         
-        // Initialize file upload functionality with the new receiver ID
-        this.initFileUpload(userId);
-        
         // Load existing messages
         this.loadMessages(userId);
         
@@ -1525,24 +1522,21 @@ class SimpleChat {
             // Handle file/image content
             let fileHTML = '';
             if (msg.message_type === 'image' && msg.file_path) {
-                // Display image preview
+                // Display image preview (no file name shown)
                 fileHTML = `
                     <div class="mt-2">
                         <img src="uploads/${msg.file_path}" alt="Image" class="max-w-xs rounded cursor-pointer hover:opacity-80 transition" onclick="window.open('uploads/${msg.file_path}', '_blank')">
                     </div>
                 `;
             } else if (msg.message_type === 'file' && msg.file_path) {
-                // Display file download link
-                const fileName = msg.file_path.split('/').pop();
-                const displayName = msg.message_text.replace('Shared a file: ', '') || fileName;
+                // Display file download button (no file name shown)
                 fileHTML = `
                     <div class="mt-2">
-                        <a href="uploads/${msg.file_path}" download class="inline-flex items-center space-x-2 px-3 py-2 rounded bg-opacity-20 hover:bg-opacity-30 transition">
+                        <button onclick="window.simpleChat.downloadFile('uploads/${msg.file_path}')" class="inline-flex items-center justify-center px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white transition" title="Download file">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8m0 8l-9-2m9 2l9-2m-9-8l-9 2m9-2l9 2m-9-2v8"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                             </svg>
-                            <span class="text-sm font-medium truncate" title="${displayName}">${displayName}</span>
-                        </a>
+                        </button>
                     </div>
                 `;
             }
@@ -1741,6 +1735,33 @@ class SimpleChat {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * DOWNLOAD FILE
+     * Properly handles file downloads with blob approach
+     * @param {string} filePath - Path to file to download
+     */
+    downloadFile(filePath) {
+        try {
+            // Create a hidden link element
+            const link = document.createElement('a');
+            link.href = filePath;
+            
+            // Extract filename from path
+            const fileName = filePath.split('/').pop();
+            link.download = fileName;
+            
+            // Add to DOM, click, and remove
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            console.log(`✅ Download started for: ${fileName}`);
+        } catch (error) {
+            console.error('❌ Download failed:', error);
+            alert('Download failed. Please try again.');
+        }
     }
 
     /**
