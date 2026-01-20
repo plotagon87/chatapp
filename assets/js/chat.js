@@ -19,6 +19,11 @@ if (typeof currentUserId === 'undefined') {
     console.error('❌ FATAL ERROR: currentUserId is not defined!');
 }
 
+// Ensure window.baseUrl is set (fixes issue where const baseUrl is not on window object)
+if (typeof window.baseUrl === 'undefined' && typeof baseUrl !== 'undefined') {
+    window.baseUrl = baseUrl;
+}
+
 console.log('=== CHAT.JS VARIABLE CHECK ===');
 console.log('currentUserId:', typeof currentUserId !== 'undefined' ? currentUserId : 'NOT FOUND');
 console.log('csrfToken:', typeof csrfToken !== 'undefined' ? 'FOUND' : 'NOT FOUND');
@@ -176,7 +181,7 @@ class SimpleChat {
             formData.append('is_typing', isTyping ? '1' : '0'); // Typing status
             
             // Send to server (fire and forget - we don't wait for response)
-            await fetch('chat/typing_status.php', {
+            await fetch(`${window.baseUrl}chat/typing_status.php`, {
                 method: 'POST',
                 body: formData
             });
@@ -191,32 +196,33 @@ class SimpleChat {
     // @param {number} userId - ID of user we're chatting with
     // ============================================
     startTypingCheck(userId) {
-        // Clear any existing check interval
-        if (this.typingCheckInterval) {
-            clearInterval(this.typingCheckInterval);
-        }
+    // Clear any existing check interval
+    if (this.typingCheckInterval) {
+        clearInterval(this.typingCheckInterval);
+    }
+    
+    // Check every 1 second
+    this.typingCheckInterval = setInterval(async () => {
+        // Only check if still chatting with same user
+        if (this.currentChatUser !== userId) return;
         
-        // Check every 1 second
-        this.typingCheckInterval = setInterval(async () => {
-            // Only check if still chatting with same user
-            if (this.currentChatUser !== userId) return;
+        try {
+            // Ask server if other user is typing - FIXED PATH
+            const response = await fetch(`${window.location.origin}/chatapp/chat/check_typing.php?chat_with=${userId}`);
             
-            try {
-                // Ask server if other user is typing
-                const response = await fetch(`chat/check_typing.php?chat_with=${userId}`);
-                const data = await response.json();
-                
-                if (data.success && data.is_typing) {
-                    // Show typing indicator
-                    this.showTypingIndicator(data.user_name);
-                } else {
-                    // Hide typing indicator
-                    this.hideTypingIndicator();
-                }
-            } catch (error) {
-                console.error('❌ Check typing error:', error);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            
+            if (data.success && data.is_typing) {
+                this.showTypingIndicator(data.user_name);
+            } else {
+                this.hideTypingIndicator();
             }
-        }, 1000); // Check every 1000ms (1 second)
+        } catch (error) {
+            // Silent fail to avoid console spam
+        }
+    }, 1000);
     }
 
     // ============================================
@@ -932,7 +938,7 @@ class SimpleChat {
             formData.append('csrf_token', window.csrfToken || '');
             
             // Upload to server
-            const response = await fetch('chat/upload_file.php', {
+            const response = await fetch(`${window.baseUrl}chat/upload_file.php`, {
                 method: 'POST',
                 body: formData
             });
@@ -1139,7 +1145,7 @@ class SimpleChat {
             formData.append('action', 'add'); // Could be 'add' or 'remove'
             
             // Send to server
-            const response = await fetch('chat/add_reaction.php', {
+            const response = await fetch(`${window.baseUrl}chat/add_reaction.php`, {
                 method: 'POST',
                 body: formData
             });
@@ -1428,7 +1434,7 @@ class SimpleChat {
         
         try {
             // Fetch messages from server
-            const response = await fetch(`chat/get_messages.php?user_id=${userId}`);
+            const response = await fetch(`${window.baseUrl}chat/get_messages.php?user_id=${userId}`);
             
             // Check response status
             if (!response.ok) {
@@ -1612,7 +1618,7 @@ class SimpleChat {
             formData.append('csrf_token', window.csrfToken || '');
             
             // Send to server
-            const response = await fetch(`chat/send_message.php`, {
+            const response = await fetch(`${window.baseUrl}chat/send_message.php`, {
                 method: 'POST',
                 body: formData
             });
