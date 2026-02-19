@@ -286,8 +286,17 @@ if (isLoggedIn()) {
             $_SESSION['role'] = $user['role'];
             $_SESSION['profile_picture'] = $user['profile_picture'];
 
-            // refresh session and extend remember expiry
-            registerUserSession($user['user_id'], $token, date('Y-m-d H:i:s', strtotime('+30 days')));
+            // generate a new token to rotate
+            try {
+                $newToken = bin2hex(random_bytes(32));
+            } catch (Exception $e) {
+                $newToken = bin2hex(mt_rand());
+            }
+            $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
+            setcookie('remember_token', $newToken, time() + 60*60*24*30, '/', '', false, true);
+
+            // refresh session row and save new token/expiry
+            registerUserSession($user['user_id'], $newToken, $expiry);
         }
     }
 }
