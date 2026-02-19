@@ -1567,6 +1567,14 @@ class SimpleChat {
             console.warn('Failed to refresh user badges', err);
         }
     }
+
+    // ============================================
+    // OPEN CHAT
+    // Initialize a conversation with another user and prepare UI
+    // ============================================
+    openChat(userId, fullName, username, profilePicture) {
+        // remove any unread badge from the user list item
+        const item = document.querySelector(`.user-item[data-user-id="${userId}"]`);
         if (item) {
             const badge = item.querySelector('.unread-badge');
             if (badge) badge.remove();
@@ -1854,9 +1862,11 @@ class SimpleChat {
                         ${fileHTML}
                         
                         <!-- Timestamp and Read Status -->
-                        <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1">
+                        <p class="text-xs ${isSent ? 'text-purple-200' : 'text-gray-500'} mt-1 flex items-center">
                             ${this.formatTime(msg.created_at)}
-                            ${isSent ? (msg.is_read ? ' ✓✓' : ' ✓') : ''}
+                            ${isSent ? (msg.is_read
+                                ? '<span class="tick-read ml-1">\u2713\u2713</span>'
+                                : '<span class="tick-sent ml-1">\u2713</span>') : ''}
                         </p>
                         
                         <!-- Reactions Display -->

@@ -389,6 +389,18 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             font-size: 48px;
             line-height: 1;
         }
+        
+        /* sent/read tick icons next to timestamp */
+        .tick-sent {
+            color: #9ca3af; /* gray-400 */
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+        .tick-read {
+            color: #3b82f6; /* blue-500 */
+            font-size: 0.75rem;
+            line-height: 1;
+        }
     </style>
 </head>
 <body class="<?php echo $is_dark_mode ? 'bg-gray-900' : 'bg-gray-100'; ?>">
