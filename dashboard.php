@@ -9,6 +9,19 @@ requireLogin();
 // Get current user data
 $current_user = getUserData($_SESSION['user_id']);
 
+// Determine if dark mode should be applied
+$is_dark_mode = false;
+if (isset($current_user['theme_preference'])) {
+    if ($current_user['theme_preference'] === 'dark') {
+        $is_dark_mode = true;
+    } elseif ($current_user['theme_preference'] === 'auto') {
+        // Check system preference
+        $is_dark_mode = isset($_SERVER['HTTP_SEC_CH_UA_DARK']) || 
+                        (isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'Dark') !== false) ||
+                        (function_exists('preg_match') && preg_match('/\(.*Dark.*\)/i', $_SERVER['HTTP_USER_AGENT'] ?? ''));
+    }
+}
+
 // Get all users except current user
 $users_stmt = $conn->prepare("SELECT user_id, username, full_name, profile_picture, status, last_seen 
                 FROM users 
@@ -57,11 +70,20 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <!-- GLOBAL JAVASCRIPT VARIABLES (DON'T CHANGE) -->
     <!-- ============================================ -->
     <script>
+        // Define variables in global scope
         const currentUserId = <?php echo (int)$_SESSION['user_id']; ?>;
         const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
         const baseUrl = '<?php echo BASE_URL; ?>';
         const userRole = '<?php echo htmlspecialchars($current_user['role'] ?? 'user'); ?>';
         const isAdmin = <?php echo isAdmin() ? 'true' : 'false'; ?>;
+        
+        // CRITICAL: Also expose these variables on the window object for external scripts (like chat.js)
+        // This ensures chat.js can access them via window.csrfToken, window.baseUrl, etc.
+        window.currentUserId = currentUserId;
+        window.csrfToken = csrfToken;
+        window.baseUrl = baseUrl;
+        window.userRole = userRole;
+        window.isAdmin = isAdmin;
         
         console.log('=== DASHBOARD VARIABLES ===');
         console.log('currentUserId:', currentUserId);
@@ -69,6 +91,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         console.log('baseUrl:', baseUrl);
         console.log('userRole:', userRole);
         console.log('isAdmin:', isAdmin);
+        console.log('window.csrfToken:', window.csrfToken ? 'SET ✓' : 'NOT SET ✗');
         console.log('==========================');
     </script>
     
@@ -350,107 +373,8 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             line-height: 1;
         }
     </style>
-        <style>
-        /* ==========================================
-        * EMOJI PICKER CUSTOM STYLES
-        * ========================================== */
-        #emojiPicker {
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-        
-        #emojiPicker::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        #emojiPicker::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        #emojiPicker::-webkit-scrollbar-thumb {
-            background: #9333ea;
-            border-radius: 10px;
-        }
-        
-        #emojiPicker::-webkit-scrollbar-thumb:hover {
-            background: #7e22ce;
-        }
-        
-        .emoji-btn {
-            cursor: pointer;
-            user-select: none;
-        }
-        
-        .emoji-btn:hover {
-            transform: scale(1.3);
-            transition: transform 0.15s ease;
-        }
-        
-        /* ==========================================
-        * FILE UPLOAD MODAL ANIMATIONS
-        * ========================================== */
-        @keyframes modalFadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        
-        #fileUploadModal > div {
-            animation: modalFadeIn 0.3s ease;
-        }
-        
-        .file-cat-btn {
-            transition: all 0.3s ease;
-        }
-        
-        .file-cat-btn:hover {
-            background-color: #f3f4f6;
-        }
-        
-        /* ==========================================
-        * MESSAGE DISPLAY IMPROVEMENTS
-        * ========================================== */
-        #messagesContainer {
-            scroll-behavior: smooth;
-        }
-        
-        .message-bubble {
-            word-wrap: break-word;
-            max-width: 100%;
-        }
-        
-        /* Make emojis in messages display nicely */
-        .message-bubble img.emoji {
-            display: inline;
-            height: 1.2em;
-            width: 1.2em;
-            margin: 0 .05em 0 .1em;
-            vertical-align: -0.1em;
-        }
-        
-        /* ==========================================
-        * RESPONSIVE IMPROVEMENTS
-        * ========================================== */
-        @media (max-width: 640px) {
-            #emojiPicker {
-                width: 90vw;
-                max-width: 320px;
-                left: 5vw;
-            }
-            
-            #fileUploadModal > div {
-                margin: 1rem;
-                max-height: 85vh;
-            }
-        }
-    </style>
 </head>
-<body class="bg-gray-100">
+<body class="<?php echo $is_dark_mode ? 'bg-gray-900' : 'bg-gray-100'; ?>">
     
     <!-- ============================================ -->
     <!-- TOP NAVIGATION BAR - FIXED -->
@@ -684,41 +608,45 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                         </div>
                     </div>
 
-                                            <!-- Message Input Area -->
-                        <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg" style="position: relative;">
-                            <form id="messageForm" class="flex items-center space-x-2">
-                                <!-- Hidden field to store receiver ID -->
-                                <input type="hidden" id="receiverId" value="">
-                                
-                                <!-- File Upload Button (will be populated by JavaScript) -->
-                                <div id="fileButtonPlaceholder"></div>
-                                
-                                <!-- Emoji Button (will be populated by JavaScript) -->
-                                <div id="emojiButtonPlaceholder"></div>
-                                
-                                <!-- Message Text Input -->
-                                <input 
-                                    type="text" 
-                                    id="messageInput" 
-                                    placeholder="Type a message..." 
-                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    autocomplete="off"
-                                    maxlength="5000"
-                                >
-                                
-                                <!-- Send Button -->
-                                <button 
-                                    type="submit" 
-                                    class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200 flex-shrink-0"
-                                    title="Send message">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                    </svg>
-                                </button>
-                            </form>
-                            
-                            <!-- Emoji Picker will be inserted here by JavaScript -->
-                        </div>
+                                                <!-- Message Input Area -->
+                            <div id="messageInputArea" class="hidden border-t border-gray-200 p-4 bg-white rounded-b-lg">
+                                <form id="messageForm" class="flex items-center space-x-2">
+                                    <input type="hidden" id="receiverId" value="">
+                                    <input type="file" id="fileInput" class="hidden" accept="*">
+                                    
+                                    <!-- File Upload Button -->
+                                    <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <!-- Emoji Button -->
+                                    <button type="button" id="emojiBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </button>
+                                    
+                                    <!-- Message Input -->
+                                    <input 
+                                        type="text" 
+                                        id="messageInput" 
+                                        placeholder="Type a message..." 
+                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        autocomplete="off"
+                                    >
+                                    
+                                    <!-- Send Button -->
+                                    <button 
+                                        type="submit" 
+                                        class="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition duration-200 flex-shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
                 </div>
             </div>
         </div>
@@ -847,43 +775,6 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             });
         }
     </script>
-                <script>
-            // ==========================================
-            // PASS PHP DATA TO JAVASCRIPT
-            // ==========================================
-            // This makes PHP session data available to JavaScript
-
-            // Store current user ID (for identifying sent vs received messages)
-            window.currentUserId = <?php echo $_SESSION['user_id']; ?>;
-
-            // Store user's full name
-            window.currentUserName = "<?php echo htmlspecialchars($_SESSION['full_name']); ?>";
-
-            // Log for debugging
-            console.log('👤 Current User ID:', window.currentUserId);
-            console.log('👤 Current User Name:', window.currentUserName);
-
-            // ==========================================
-            // ENSURE BASE URL IS SET
-            // ==========================================
-            // This is CRITICAL for all AJAX requests to work
-            if (typeof window.baseUrl === 'undefined' || !window.baseUrl) {
-                // Calculate base URL from current page
-                const currentPath = window.location.pathname;
-                const pathParts = currentPath.split('/');
-                
-                // Remove filename (dashboard.php) to get folder path
-                pathParts.pop();
-                
-                // Construct base URL
-                window.baseUrl = window.location.origin + pathParts.join('/') + '/';
-                
-                console.log('🌐 Base URL computed:', window.baseUrl);
-            }
-            </script>
-
-<!-- Load the enhanced chat.js -->
-<script src="<?php echo BASE_URL; ?>assets/js/chat.js"></script>
     
     <!-- Load chat.js -->
     <script src="assets/js/chat.js?v=<?php echo time(); ?>"></script>

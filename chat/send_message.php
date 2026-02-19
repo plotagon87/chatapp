@@ -49,7 +49,7 @@ if ($stmt->execute([$sender_id, $receiver_id, $message_text, $message_type, $fil
     $message_id = $conn->lastInsertId();
     
     // Create notification for receiver
-    $sender_name = $_SESSION['full_name'];
+    $sender_name = $_SESSION['full_name'] ?? 'User';
     $notification_content = "$sender_name sent you a message";
     createNotification($receiver_id, 'message', $notification_content, $message_id);
     
