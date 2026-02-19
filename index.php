@@ -28,7 +28,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 updateUserStatus($user['user_id'], 'online');
                 logActivity($user['user_id'], 'User logged in');
                 registerUserSession($user['user_id']);
-                
+
+                // "remember this device" feature
+                if (!empty($_POST['remember_me'])) {
+                    try {
+                        $token = bin2hex(random_bytes(32));
+                    } catch (Exception $e) {
+                        $token = bin2hex(mt_rand());
+                    }
+                    $expiry = date('Y-m-d H:i:s', strtotime('+30 days'));
+                    $stmt2 = $conn->prepare("UPDATE user_sessions SET remember_token = ?, expires_at = ? WHERE session_id = ?");
+                    $stmt2->execute([$token, $expiry, session_id()]);
+                    setcookie('remember_token', $token, time() + 60*60*24*30, '/', '', false, true);
+                }
+
                 header('Location: dashboard.php');
                 exit();
             } else {
@@ -124,6 +137,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         placeholder="Enter your password"
                         required
                     >
+                </div>
+                <div class="mb-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="remember_me" value="1" class="form-checkbox h-4 w-4 text-purple-600">
+                        <span class="ml-2 text-sm text-gray-700">Remember this device</span>
+                    </label>
                 </div>
 
                 <button 

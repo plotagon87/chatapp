@@ -61,7 +61,7 @@ A modern, responsive intranet messaging platform designed for secure team commun
 - ✅ User registration and authentication
 - ✅ Profile customization (avatar, status, theme preference)
 - ✅ Session management screen with ability to log out other devices or individual sessions
-- ✅ Privacy dashboard allowing users to download their data or delete their account
+- ✅ Privacy dashboard allowing users to download their data or delete their account (includes messages, group memberships, reactions, groups created, etc.)
 - ✅ User status indicators (Online, Offline, Busy, Away)
 - ✅ User directory and search
 - ✅ Role-based access control (Admin, Staff, Student, User)

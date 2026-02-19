@@ -27,6 +27,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $gstmt->execute([$user_id]);
         $export['group_memberships'] = $gstmt->fetchAll();
 
+        // groups created by user
+        $gcstmt = $conn->prepare("SELECT * FROM group_chats WHERE created_by = ?");
+        $gcstmt->execute([$user_id]);
+        $export['groups_created'] = $gcstmt->fetchAll();
+
+        // group messages sent by user
+        $gmstmt = $conn->prepare("SELECT * FROM group_messages WHERE sender_id = ?");
+        $gmstmt->execute([$user_id]);
+        $export['group_messages_sent'] = $gmstmt->fetchAll();
+
+        // message reactions made by user
+        $rstmt = $conn->prepare("SELECT * FROM message_reactions WHERE user_id = ?");
+        $rstmt->execute([$user_id]);
+        $export['reactions'] = $rstmt->fetchAll();
+
         // notifications
         $nstmt = $conn->prepare("SELECT * FROM notifications WHERE user_id = ?");
         $nstmt->execute([$user_id]);

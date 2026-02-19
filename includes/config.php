@@ -166,17 +166,20 @@ function logActivity($user_id, $action) {
 /**
  * Register or refresh a session row for the current user.
  * Should be called after successful login and on each page load.
+ * Optionally supply a remember token/expiry.
  */
-function registerUserSession($user_id) {
+function registerUserSession($user_id, $remember_token = null, $expires_at = null) {
     global $conn;
     $session_id = session_id();
     $ip = $_SERVER['REMOTE_ADDR'];
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
     $stmt = $conn->prepare(
-        "REPLACE INTO user_sessions (session_id, user_id, ip_address, user_agent, last_activity) VALUES (?, ?, ?, ?, NOW())"
+        "REPLACE INTO user_sessions 
+            (session_id, user_id, ip_address, user_agent, last_activity, remember_token, expires_at) 
+         VALUES (?, ?, ?, ?, NOW(), ?, ?)"
     );
-    $stmt->execute([$session_id, $user_id, $ip, $ua]);
+    $stmt->execute([$session_id, $user_id, $ip, $ua, $remember_token, $expires_at]);
 }
 
 function refreshUserSession() {
@@ -269,5 +272,23 @@ if (isLoggedIn()) {
     // maintain session tracking table
     registerUserSession($_SESSION['user_id']);
     refreshUserSession();
+} else if (!empty($_COOKIE['remember_token'])) {
+    // attempt automatic login via remember me cookie
+    $token = $_COOKIE['remember_token'];
+    $stmt = $conn->prepare("SELECT user_id FROM user_sessions WHERE remember_token = ? AND expires_at > NOW()");
+    $stmt->execute([$token]);
+    if ($row = $stmt->fetch()) {
+        $user = getUserData($row['user_id']);
+        if ($user) {
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['profile_picture'] = $user['profile_picture'];
+
+            // refresh session and extend remember expiry
+            registerUserSession($user['user_id'], $token, date('Y-m-d H:i:s', strtotime('+30 days')));
+        }
+    }
 }
 ?>
