@@ -54,7 +54,14 @@ $allowed_mime_types = [
     'doc' => 'application/msword',
     'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'txt' => 'text/plain',
-    'zip' => 'application/zip'
+    'zip' => 'application/zip',
+    // audio mime types for voice messages
+    'mp3' => 'audio/mpeg',
+    'wav' => 'audio/wav',
+    'ogg' => 'audio/ogg',
+    'm4a' => 'audio/mp4',
+    'flac' => 'audio/flac',
+    'webm' => 'audio/webm'
 ];
 
 // Get actual file MIME type
@@ -74,9 +81,14 @@ if (isset($allowed_mime_types[$file_extension])) {
 
 // Determine message type based on extension
 $message_type = 'file';
+// treat image, audio (voice) and default file separately
 if (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
     $message_type = 'image';
     $upload_dir = UPLOAD_PATH . 'images/';
+} elseif (in_array($file_extension, ['mp3','wav','ogg','m4a','flac','webm'])) {
+    // audio formats are considered "voice" messages
+    $message_type = 'voice';
+    $upload_dir = UPLOAD_PATH . 'voice/';
 } else {
     $upload_dir = UPLOAD_PATH . 'files/';
 }

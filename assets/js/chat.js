@@ -57,7 +57,10 @@ class SimpleChat {
         this.isTyping = false; // Whether current user is typing
         this.isUserScrolling = false; // Whether user manually scrolled up (to prevent auto-scroll)
         this.lastMessageCount = 0; // Track number of messages to detect new ones
-        
+        // Audio recording state
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.recordedChunks = [];        
         // Reaction emojis mapping
         // Maps reaction type names to their emoji characters
         this.reactionEmojis = {
@@ -98,6 +101,7 @@ class SimpleChat {
         this.bindSearch(); // Searching users
         this.bindTypingIndicator(); // "User is typing..." feature
         this.bindFileUpload(); // File attachment feature
+        this.bindAudioRecording(); // Audio recording / voice message feature
     }
 
     // ============================================
@@ -508,10 +512,11 @@ class SimpleChat {
             },
             'Audio': {
                 icon: '🎵',
-                extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac'],
-                mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac'],
+                extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'webm'],
+                mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac', 'audio/webm'],
                 maxSize: 10485760
             },
+
             'Other': {
                 icon: '📎',
                 extensions: ['zip', 'rar', '7z', 'tar', 'gz', 'exe', 'sh'],
@@ -540,6 +545,96 @@ class SimpleChat {
                     this.showFileUploadModal(this.currentChatUser);
                 }
             });
+        }
+    }
+
+    // ============================================
+    // AUDIO RECORDING / VOICE MESSAGE SUPPORT
+    // Enables user to record audio via microphone and send
+    // ============================================
+    bindAudioRecording() {
+        const btn = document.getElementById('audioRecordBtn');
+        if (!btn) return;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!this.currentChatUser) {
+                alert('Please select a chat before recording audio.');
+                return;
+            }
+            if (this.isRecording) {
+                this.stopRecording();
+            } else {
+                this.startRecording();
+            }
+        });
+    }
+
+    startRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Audio recording is not supported by your browser.');
+            return;
+        }
+
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            this.recordedChunks = [];
+            this.mediaRecorder = new MediaRecorder(stream);
+            this.mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    this.recordedChunks.push(e.data);
+                }
+            };
+            this.mediaRecorder.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                this.handleRecordingComplete();
+            };
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.updateRecordingButton();
+        }).catch(err => {
+            console.error('Microphone access error:', err);
+            alert('Unable to access microphone. Please grant permission.');
+        });
+    }
+
+    stopRecording() {
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            this.updateRecordingButton();
+        }
+    }
+
+    handleRecordingComplete() {
+        if (this.recordedChunks.length === 0) return;
+        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
+        // Immediately upload the recorded audio as a voice message
+        this.uploadFile(file, this.currentChatUser).then(success => {
+            if (success) {
+                this.loadMessages(this.currentChatUser);
+            }
+        });
+    }
+
+    updateRecordingButton() {
+        const btn = document.getElementById('audioRecordBtn');
+        if (!btn) return;
+        if (this.isRecording) {
+            // show stop icon and red color
+            btn.innerHTML = `
+                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+            `;
+            btn.title = 'Stop recording';
+        } else {
+            // restore mic icon
+            btn.innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4m0 14v4m4-10a4 4 0 01-8 0V7a4 4 0 018 0z" />
+                </svg>
+            `;
+            btn.title = 'Record audio';
         }
     }
 
@@ -821,6 +916,7 @@ class SimpleChat {
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-gray-800 truncate">${file.name}</p>
                             <p class="text-xs text-gray-500">${sizeKB} KB</p>
+                            ${category === 'Audio' ? `<audio controls class="mt-2 max-w-full"><source src="${URL.createObjectURL(file)}" type="${file.type}">Your browser does not support audio playback.</audio>` : ''}
                         </div>
                     </div>
                     <button type="button" 
@@ -1554,7 +1650,7 @@ class SimpleChat {
                 reactionsHTML = '<div class="message-reactions"></div>';
             }
             
-            // Handle file/image content
+            // Handle file/image/audio content
             let fileHTML = '';
             if (msg.message_type === 'image' && msg.file_path) {
                 // Display image preview (no file name shown)
@@ -1563,17 +1659,42 @@ class SimpleChat {
                         <img src="uploads/${msg.file_path}" alt="Image" class="max-w-xs rounded cursor-pointer hover:opacity-80 transition" onclick="window.open('uploads/${msg.file_path}', '_blank')">
                     </div>
                 `;
-            } else if (msg.message_type === 'file' && msg.file_path) {
-                // Display file download button (no file name shown)
+            } else if (msg.message_type === 'voice' && msg.file_path) {
+                // Play voice message inline
+                const ext = msg.file_path.split('.').pop();
                 fileHTML = `
                     <div class="mt-2">
-                        <button onclick="window.simpleChat.downloadFile('uploads/${msg.file_path}')" class="inline-flex items-center justify-center px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white transition" title="Download file">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                        </button>
+                        <audio controls class="max-w-xs">
+                            <source src="uploads/${msg.file_path}" type="audio/${ext}">
+                            Your browser does not support audio playback.
+                        </audio>
                     </div>
                 `;
+            } else if (msg.message_type === 'file' && msg.file_path) {
+                // Determine if it's actually an audio file by extension
+                const ext = msg.file_path.split('.').pop().toLowerCase();
+                const audioExts = ['mp3','wav','ogg','m4a','flac','webm'];
+                if (audioExts.includes(ext)) {
+                    fileHTML = `
+                        <div class="mt-2">
+                            <audio controls class="max-w-xs">
+                                <source src="uploads/${msg.file_path}" type="audio/${ext}">
+                                Your browser does not support audio playback.
+                            </audio>
+                        </div>
+                    `;
+                } else {
+                    // Display file download button (no file name shown)
+                    fileHTML = `
+                        <div class="mt-2">
+                            <button onclick="window.simpleChat.downloadFile('uploads/${msg.file_path}')" class="inline-flex items-center justify-center px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white transition" title="Download file">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }
             }
             
             // Build complete message HTML

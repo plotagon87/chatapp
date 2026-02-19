@@ -68,7 +68,14 @@ $allowed_mime_types = [
     'doc' => 'application/msword',
     'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'txt' => 'text/plain',
-    'zip' => 'application/zip'
+    'zip' => 'application/zip',
+    // audio mime types for voice
+    'mp3' => 'audio/mpeg',
+    'wav' => 'audio/wav',
+    'ogg' => 'audio/ogg',
+    'm4a' => 'audio/mp4',
+    'flac' => 'audio/flac',
+    'webm' => 'audio/webm'
 ];
 
 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -88,6 +95,9 @@ $message_type = 'file';
 if (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
     $message_type = 'image';
     $upload_dir = UPLOAD_PATH . 'images/';
+} elseif (in_array($file_extension, ['mp3','wav','ogg','m4a','flac','webm'])) {
+    $message_type = 'voice';
+    $upload_dir = UPLOAD_PATH . 'voice/';
 } else {
     $upload_dir = UPLOAD_PATH . 'files/';
 }

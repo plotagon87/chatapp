@@ -34,7 +34,9 @@ $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/')
 define('BASE_URL', (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . ($basePath === '' || $basePath === '/' ? '' : $basePath) . '/');
 define('UPLOAD_PATH', __DIR__ . '/../uploads/');
 define('MAX_FILE_SIZE', 10485760); // 10MB
-define('ALLOWED_FILE_TYPES', ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt', 'zip']);
+// allowed file extensions (used for upload validation).
+// audio files are included so users can send/record voice messages.
+define('ALLOWED_FILE_TYPES', ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt', 'zip', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'webm']);
 
 // Create PDO database connection
 try {

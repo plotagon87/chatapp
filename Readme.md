@@ -198,7 +198,7 @@ Edit `includes/config.php` with your settings:
 // Database Configuration
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
-define('DB_PASS', '');  // Your MySQL password
+define('DB_PASS', '');  // my MySQL password
 define('DB_NAME', 'lan_chat_db');
 ```
 

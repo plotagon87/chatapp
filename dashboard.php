@@ -614,6 +614,13 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                     <input type="hidden" id="receiverId" value="">
                                     <input type="file" id="fileInput" class="hidden" accept="*">
                                     
+                                    <!-- Audio Record Button -->
+                                    <button type="button" id="audioRecordBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0" title="Record audio">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4m0 14v4m4-10a4 4 0 01-8 0V7a4 4 0 018 0z" />
+                                        </svg>
+                                    </button>
+                                    
                                     <!-- File Upload Button -->
                                     <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

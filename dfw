@@ -1,0 +1,345 @@
+[33mcommit 8f7645c02f94e690ae6b31e9292c18499ed311c0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Thu Feb 19 13:26:33 2026 +0100
+
+    Add end-to-end encryption support and Docker configuration
+    
+    - Implemented E2EE key generation and management in various scripts.
+    - Updated README to reflect E2EE requirements and Docker usage.
+    - Added Dockerfile and docker-compose.yml for containerized deployment.
+    - Enhanced error handling and feature detection for E2EE in JavaScript.
+    - Updated configuration to allow environment variable overrides for database settings.
+
+[33mcommit 86307e2c7a6ac4ad002691f74d860ab4bacc3927[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Thu Feb 19 12:31:41 2026 +0100
+
+    Implement end-to-end encryption features, including public key management and message encryption/decryption
+
+[33mcommit 3af14f421865bea874bf2617a3f2be1e03cafe86[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Thu Feb 19 12:06:01 2026 +0100
+
+    trying
+    
+    crying
+
+[33mcommit 355db77b26aec87bd03a29cfcd40f2db574a3082[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Thu Feb 19 11:06:03 2026 +0100
+
+    completley refactor all my code so that it takes its tailwind.min.css locally instead o dowloading it from the internet
+
+[33mcommit 512aa05137d984673ef10eee0b82b952c0846448[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Thu Feb 19 02:51:29 2026 +0100
+
+    Add group chat APIs and Laravel conversion guide
+    
+    Add a comprehensive Laravel conversion guide and implement group chat features in the legacy PHP app. Files added: LARAVEL_CONVERSION_GUIDE.md (full migration guide), chat/get_group_messages.php and chat/send_group_message.php (JSON APIs with membership checks, CSRF validation, activity logging), chat/upload_group_file.php, and group_chat.php. Adjustments: minor fix in chat/send_message.php to guard against missing session full_name, and updates to chat/upload_file.php and dashboard.php (refactor request handling and response behavior). These changes add group messaging, file upload support, and documentation to aid migration to Laravel while improving security and robustness of chat endpoints.
+
+[33mcommit 093083fa252b7bf2865f27d80ef8944608513ae0[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Wed Feb 18 13:12:02 2026 +0100
+
+    the last commmit i did had probles though i did not undo them so be carefull it is full of bugs the icon for files uploads and emogis where not more showing
+
+[33mcommit dfc98a9ac6b2e6679b251b4dae74598cd37998be[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Tue Jan 20 14:01:04 2026 +0100
+
+    Fix CSRF validation (security risk)
+    Fix SQL injection (security risk)
+    Fix message alignment (UX bug)
+    Add file upload UI (missing feature)
+    Add SSE/WebSockets (nice to have)
+    
+    Start with security fixes first!
+
+[33mcommit 8e96ea9c06b61a296a531dd12e39a5fb76a9b77c[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Tue Jan 20 13:49:21 2026 +0100
+
+    my gighub copilot token just finish commits are now difficukt to write
+
+[33mcommit 5b500dd9a35f13293ac12b850aa02800e2da1806[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Tue Jan 20 12:37:50 2026 +0100
+
+    Hide file names and improve file download privacy
+    
+    File and image names are no longer displayed in the chat UI to enhance privacy. Added a dedicated downloadFile() method to reliably trigger downloads with the original filename, using a button with a download icon instead of a text link. This update ensures a cleaner interface and prevents filename disclosure to receivers.
+
+[33mcommit 0f01b0481c0a1b47633c7e4870dd4a69d6b285a5[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Tue Jan 20 12:30:26 2026 +0100
+
+    Add emoji picker and file upload features with docs
+    
+    Implemented emoji picker with 5 categories and 250+ emojis, and a file upload modal supporting 4 file types, drag & drop, previews, and progress tracking. Updated assets/js/chat.js and dashboard.php for UI, logic, and styling. Added comprehensive documentation: API reference, feature guide, testing guide, implementation summary, verification report, and quick reference. All features are production ready, fully tested, and mobile responsive.
+
+[33mcommit fc198aed91562670d9b6dd707e6a349461c910ad[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Tue Jan 20 12:12:15 2026 +0100
+
+    Add emoji picker and file upload UI to message input
+    
+    Introduces styles and UI elements for an emoji picker and file upload button in the message input area. Enhances message bubble styling for better emoji rendering and improves user interaction with file uploads and emojis.
+
+[33mcommit c6b86416623504180cd36bc54ef723e738cc02a7[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 06:16:47 2026 +0100
+
+    Add initial project Readme with setup and features
+    
+    Introduces a comprehensive Readme.md detailing ChatApp's features, installation steps, configuration, database schema, API endpoints, project structure, development guidelines, security features, troubleshooting, and roadmap. This serves as the main documentation for onboarding and reference.
+
+[33mcommit a17ec68863aa6b092e8c2cd3546ddb22d6342ffe[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 05:50:12 2026 +0100
+
+    Enhance chat with message reactions and welcome announcement
+    
+    Major update to chat.js adds message reactions (like, love, etc.), emoji picker improvements, file upload enhancements, and better event handling. Dashboard.php improves user menu dropdown, adds support for welcome announcements that auto-hide for new users, and exposes user role/admin status to JS. Migration adds is_welcome flag to announcements table for targeted welcome messages. Also includes script to run migrations and removes a temporary docx file.
+
+[33mcommit deb58cb60cdcb5c3f0030fb9b705e023220791b5[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 04:50:18 2026 +0100
+
+    Add message reactions and improve chat UX
+    
+    Implemented message reactions with backend support (add_reaction.php) and updated get_messages.php to include reaction data. Enhanced chat.js with auto-scroll fixes, manual scroll detection, reduced polling frequency, and added file upload support. Updated default profile/group images and improved profile picture upload validation. Renamed manifest.js to manifest.json and added Apple icon.
+
+[33mcommit be1432cffaf1cb2705ab018e8133634d71325918[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 04:13:09 2026 +0100
+
+    Add typing indicator and emoji picker to chat
+    
+    Introduces real-time typing indicators and an emoji picker to the chat interface. Adds new PHP endpoints for typing status, updates chat.js with typing detection, polling, and emoji picker UI, and refactors code for improved maintainability. Also moves the default profile image and removes an unused group image.
+
+[33mcommit b803b3c12bd4617b3e467845add0fe0c1bf603ce[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 03:49:39 2026 +0100
+
+    Update images, refactor chat scroll, enable error reporting
+    
+    Replaced and added image assets in the images directory. Refactored scrollToBottom method in chat.js to improve scroll behavior and removed duplicate code. Enabled error reporting in dashboard.php for debugging purposes.
+
+[33mcommit 7db0106414162d4d1d11b1bde466369040cbb821[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 03:23:50 2026 +0100
+
+    Update favicon and PWA icons across all pages
+    
+    Replaces old apple-touch-icon references with new favicon and Apple Touch Icon links in all PHP pages for both admin and user interfaces. Adds new icon assets to the assets/images directory to improve browser tab icons and PWA support. Ensures consistent branding and better device compatibility for home screen and browser icons.
+
+[33mcommit 4a22678f8b918ac079a0bb89aa5fb31de3733c13[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 02:30:51 2026 +0100
+
+    Add mobile PWA support and responsive dashboard UI
+    
+    Added manifest and theme color meta tags to all admin and main dashboard pages for PWA support. Introduced a new mobile.css with mobile-specific improvements. Refactored dashboard.php for a mobile-first, responsive layout with a slide-in user sidebar, improved chat UI, and better touch targets. Enhanced user experience on mobile devices and improved accessibility for PWA installation.
+
+[33mcommit 83cfb9dc51087004aa313498543932b7c793fb47[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 02:13:15 2026 +0100
+
+    Enhance mobile support and chat UX
+    
+    Added mobile viewport restrictions to all major pages for improved mobile experience. Introduced mobile.css for future styling. Enhanced chat.js with smooth scroll-to-bottom and pull-to-refresh for mobile users. Minor UI adjustments in dashboard.php for better mobile usability. Removed a temporary document file.
+
+[33mcommit c69c58416f3fc26831d021b2169037d37f6ee192[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 01:46:07 2026 +0100
+
+    Update chat.js
+
+[33mcommit 214ff61eee693626780c0feae786c1e7ceca31c7[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 01:35:05 2026 +0100
+
+    Refactor dashboard.php for improved structure and clarity
+    
+    Reorganized dashboard.php to load user, announcement, and unread message data at the top, and refactored JavaScript variable initialization for clarity and reliability. Simplified and documented the chat interface markup, improved sidebar user list rendering, and enhanced code comments for maintainability. Also streamlined the message input area and ensured chat.js loads after critical variables are set.
+
+[33mcommit c84980d480db02c300497b6727b3a291df3fe461[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Fri Jan 16 01:14:34 2026 +0100
+
+    Improve chat message alignment and JS variable setup
+    
+    Refactored chat.js for clearer structure, robust message alignment, and improved documentation. Updated dashboard.php to set global JavaScript variables (currentUserId, csrfToken, baseUrl) before chat.js loads, ensuring correct message alignment and easier debugging. Enhanced comments and debug logging for maintainability.
+
+[33mcommit 4a991ea42f9d0d52c5c4378defe268a14e125f92[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Mon Jan 5 21:18:58 2026 +0100
+
+    Refactor chat UI and JS for improved message alignment and robustness
+    
+    Rewrote chat.js as SimpleChat with improved message alignment, time formatting, and robust initialization. Enhanced dashboard.php to handle missing profile pictures and baseUrl more safely, and simplified the message input area by disabling file upload and emoji features for now. Removed unused code and improved error handling and logging throughout the chat interface.
+
+[33mcommit af1af158d591ec4b329d10bf49ea3200425fd0ce[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Tue Nov 4 02:13:11 2025 +0100
+
+    Refactor chat.js and add user profile page
+    
+    Rewrote assets/js/chat.js for improved error handling, modularity, and maintainability. Updated dashboard.php and admin/dashboard.php to pass PHP variables to JavaScript in a consistent way and added debug scripts. Added includes/profile.php for user profile viewing and editing, including profile picture upload and statistics display.
+
+[33mcommit 33ae142f893a69ffb37eb97589066a7a58c025f0[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 08:51:13 2025 +0100
+
+    Refactor chat.js to encapsulate logic in ChatApp class
+    
+    Moved global chat functions and event bindings into a self-contained ChatApp class, improving modularity and maintainability. Replaced legacy global handlers with class methods and streamlined DOM event management. The refactor prepares the codebase for easier future enhancements and reduces reliance on global variables.
+
+[33mcommit 71d1f86ff2fa5dbcf9cd45573a43599d7635f981[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 08:13:36 2025 +0100
+
+    Refactor chat UI and add message loading logic
+    
+    Replaces global openChat calls with a class method, adds chat header and message area updates, implements message loading and display with error handling, and introduces helper functions for formatting and escaping. Also adds clearChat and uploadFile stubs for improved UI state management.
+
+[33mcommit c6d7c2d519cf00b56701ddf71493b0eb567ecf7a[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 08:04:07 2025 +0100
+
+    Refactor chat event bindings and remove unused methods
+    
+    Refactored chat.js to guard event bindings for message sending and file upload, preventing duplicate listeners. Removed unused status updates, search, and page visibility bindings from initialization. Also deleted a temporary Word document file.
+
+[33mcommit 0ba97b972ad075f5434b4eb54ee522135e1759c0[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 07:23:14 2025 +0100
+
+    Refactor event handlers to ChatApp class
+    
+    Moved message sending and file upload event handlers from global scope to be managed within the ChatApp class for better encapsulation and maintainability.
+
+[33mcommit 1be1a548dd646cd385cd433a0c6a42b5adb9eea2[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 07:20:46 2025 +0100
+
+    Update API endpoints to use dynamic base URL
+    
+    Replaced hardcoded '/chatapp/' paths with `${base}/` in fetch requests for message loading, sending, and status updates. This improves flexibility for deployments with different base URLs.
+
+[33mcommit 902c96d3443c9b0d2d393fd16adc488fbe7fbe28[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 07:20:21 2025 +0100
+
+    Improve CSRF token and base URL initialization
+    
+    Updated chat.js to safely initialize CSRF token and base URL from global variables or window properties, providing fallbacks for better compatibility with dashboard.php.
+
+[33mcommit 39e732253ff1642f72decd28c7acc78ba6627cec[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 07:18:27 2025 +0100
+
+    Refactor chat.js location and improve config handling
+    
+    Moved chat.js from js/ to assets/js/ and updated dashboard.php to reference the new location with cache busting. Enhanced config.php to generate CSRF tokens and dynamically construct BASE_URL. Improved dashboard.php to safely encode JS variables and added profile picture data to user list items.
+
+[33mcommit b5b244338ee9b21f3d40ba06954694b543d43082[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 07:00:11 2025 +0100
+
+    Add main chat functionality JavaScript file
+    
+    Introduces assets/js/chat.js implementing chat UI logic, user selection, message polling, sending, notifications, and helper functions. Includes event bindings, error handling, and a ChatApp class for future extensibility.
+
+[33mcommit d3301a595c97c0a7731b5e6609a64202f07fdaa6[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 05:07:20 2025 +0100
+
+    Refactor chat JS into separate file and enhance features
+    
+    Moved inline chat JavaScript from dashboard.php to js/chat.js, improving code organization and maintainability. Enhanced chat.js with better error handling, debounced user search, notification system, date separators, CSRF token support, and UI improvements. Added placeholder for file upload functionality.
+
+[33mcommit 90c156d284ef2fc6eaf9eea242bad0548f1abd55[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 04:30:17 2025 +0100
+
+    Add admin group listing page
+    
+    Introduces view_groups.php for admins to view, search, and paginate all group chats with member and message counts, creator info, and last activity. Includes UI for group actions and navigation, with Tailwind CSS styling.
+
+[33mcommit 75ac7f5668c27da967a2b967f99994cd25d8fdd5[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 04:28:10 2025 +0100
+
+    Add admin page to view new users from last 7 days
+    
+    Introduces view_new_users.php for admins to filter, search, and paginate users registered in the last 7 days. Includes role and status filters, search by username/email/full name, and displays user details with pagination.
+
+[33mcommit 5d21812ebde6d4d480803f939d068c6d547fe0c3[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 04:27:03 2025 +0100
+
+    Add admin page to view online users
+    
+    Introduces a new admin interface for viewing online users with search, role filtering, and pagination. The page displays user details, supports filtering by username, email, full name, and role, and includes pagination controls for navigation.
+
+[33mcommit 76429a50a2b164a563917fdbdf63b6647f53b47f[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 04:24:02 2025 +0100
+
+    Add admin user management page
+    
+    Introduces view_users.php for admins to view, search, filter, and paginate users. Includes role and status filters, user details, and pagination controls for improved user management.
+
+[33mcommit f2b285e4fde311800030dcf3fb9332cec5de34ac[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 04:21:35 2025 +0100
+
+    Make dashboard stat cards clickable for navigation
+    
+    Stat cards for total users, online users, total groups, and new users (week) are now clickable and redirect to their respective views. Added visual cues and a click effect for better user experience.
+
+[33mcommit 38299ca868cd967b36a1caeb4ffe8407b5d44f2c[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 04:01:51 2025 +0100
+
+    Refactor recent activity query to use prepared statement
+    
+    Replaced direct query execution with a prepared statement for fetching recent system activity. This improves security and consistency in handling user input.
+
+[33mcommit b41731dfafb50d6a4c9631fd4bc7da1bc753ee8b[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 03:55:13 2025 +0100
+
+    Add admin settings, logs, and system settings migration
+    
+    Introduces admin/settings.php for system configuration and maintenance, and admin/system_logs.php for viewing, filtering, exporting, and clearing activity logs. Adds paginated user listing in manage_users.php. Implements system settings loading in config.php and provides a helper for accessing settings. Adds migrations for system_settings table and a migration runner script.
+
+[33mcommit c3462b5d0b21a50aa76ed36d981c73aaaece5b61[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Sat Oct 25 03:34:58 2025 +0100
+
+    Refactor admin and API scripts, add pagination
+    
+    Updated all require_once paths to use __DIR__ for reliability. Refactored admin/announcements.php and admin/manage_users.php to use PDO fetchAll and added pagination to announcements. Improved admin/dashboard.php with statistics, recent activity, and removed inline chat logic. Updated isAdmin() logic in config.php for stricter role checking. Minor fixes in profile.php and other scripts for consistency.
+
+[33mcommit 0bd202eb406e9d648dbe93af96b16370298bb905[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Thu Oct 23 04:28:12 2025 +0100
+
+    Revamp admin dashboard and announcements management
+    
+    Redesigned the admin dashboard to provide a modern chat interface with user list, announcements, and real-time messaging. Replaced group management in announcements.php with announcement creation, listing, activation/deactivation, and deletion. Updated manage_users.php to allow user deletion (except self) and improved admin access checks. These changes enhance admin capabilities and streamline user and announcement management.
+
+[33mcommit 472922d7b473231dd3e1ee0a276566eff5a0870f[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Wed Oct 22 23:30:53 2025 +0100
+
+    secong commit: LAN Chat Application setup with .gitignore and folder structure
+
+[33mcommit 75a8283e954f14f71fbc7119d5926ab24e8019aa[m
+Author: Shadow <fonutchi87@gmail.com>
+Date:   Wed Oct 22 02:56:51 2025 +0100
+
+    Initial commit: MySQLi version
