@@ -25,36 +25,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($check_email->rowCount() > 0) {
             $error = 'Email already in use';
         } else {
-            // Handle profile picture upload
+            // Handle profile picture actions (remove or upload)
+            // default to whatever is currently stored for the user
             $profile_picture = $user['profile_picture'];
-            
+            $upload_dir = 'uploads/profiles/';
+
+            // create upload directory early in case we need to delete files
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+
+            // if user asked to remove their picture, clear it first
+            if (isset($_POST['remove_picture']) && $_POST['remove_picture'] === '1') {
+                if ($profile_picture !== 'default.png' && file_exists($upload_dir . $profile_picture)) {
+                    @unlink($upload_dir . $profile_picture);
+                }
+                $profile_picture = 'default.png';
+            }
+
+            // if a new file was uploaded, handle it (takes precedence over a removal request)
             if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['profile_picture'];
                 $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                
+
                 // Validate file type
                 if (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
                     // Validate file size (5MB max)
                     if ($file['size'] <= 5242880) {
-                        $upload_dir = 'uploads/profiles/';
-                        
-                        // Create directory if it doesn't exist
-                        if (!is_dir($upload_dir)) {
-                            mkdir($upload_dir, 0755, true);
-                        }
-                        
                         // Generate unique filename
                         $new_filename = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $file_extension;
                         $upload_path = $upload_dir . $new_filename;
-                        
+
                         // Move uploaded file
                         if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                            // Delete old profile picture if not default
-                            if ($user['profile_picture'] !== 'default.png' && 
+                            // Delete old profile picture if not default (and if we haven't already deleted it above)
+                            if ($user['profile_picture'] !== 'default.png' &&
                                 file_exists($upload_dir . $user['profile_picture'])) {
                                 @unlink($upload_dir . $user['profile_picture']);
                             }
-                            
+
                             $profile_picture = $new_filename;
                         } else {
                             $error = 'Failed to upload profile picture';
@@ -240,6 +249,13 @@ $stats = $stmt->fetch();
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 >
                                 <p class="text-xs text-gray-500 mt-1">Supported: JPG, PNG, GIF (Max 5MB)</p>
+
+                                <?php if ($user['profile_picture'] && $user['profile_picture'] !== 'default.png'): ?>
+                                <label class="inline-flex items-center mt-2">
+                                    <input type="checkbox" name="remove_picture" value="1" class="form-checkbox h-4 w-4 text-purple-600">
+                                    <span class="ml-2 text-sm text-gray-700">Remove current picture (use default)</span>
+                                </label>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Full Name -->

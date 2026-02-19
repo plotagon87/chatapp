@@ -1316,24 +1316,40 @@ class SimpleChat {
     // @param {string} reactionType - Type of reaction (like, love, etc.)
     // ============================================
     async addReaction(messageId, reactionType) {
-        // Close reaction picker
+        // Close any open picker
         const picker = document.getElementById('reactionPicker');
         if (picker) picker.remove();
-        
+
+        // disable further clicks on this message's reaction area while the request is pending
+        const msgEl = document.querySelector(`[data-message-id="${messageId}"] .message-reactions`);
+        if (msgEl) {
+            msgEl.classList.add('opacity-50', 'pointer-events-none');
+        }
+
         try {
-            // Prepare reaction data
+            // determine whether we should send add or remove
+            let action = 'add';
+            if (msgEl) {
+                // look for an existing badge with this type that is highlighted
+                const selector = `span[onclick*="addReaction(${messageId}, '${reactionType}')"]`;
+                const badge = msgEl.querySelector(selector);
+                if (badge && badge.classList.contains('bg-purple-100')) {
+                    action = 'remove';
+                }
+            }
+
             const formData = new FormData();
             formData.append('message_id', messageId);
             formData.append('reaction_type', reactionType);
-            formData.append('action', 'add'); // Could be 'add' or 'remove'
+            formData.append('action', action);
             formData.append('csrf_token', window.csrfToken || '');
-            
+
             // Send to server
             const response = await fetch(`${window.baseUrl}chat/add_reaction.php`, {
                 method: 'POST',
                 body: formData
             });
-            
+
             const data = await response.json();
             if (data.success) {
                 // Update reactions in UI immediately
@@ -1343,6 +1359,10 @@ class SimpleChat {
             }
         } catch (error) {
             console.error('Reaction error:', error);
+        } finally {
+            if (msgEl) {
+                msgEl.classList.remove('opacity-50', 'pointer-events-none');
+            }
         }
     }
 
@@ -2153,5 +2173,37 @@ if (document.readyState === 'loading') {
 }
 
 // ============================================
-// END OF CHAT.JS
+// NOTIFICATION COUNT POLLING
+// Periodically refresh unread notifications badge
 // ============================================
+function refreshNotificationBadge() {
+    fetch(`${window.baseUrl}api/notifications.php?count_only=1`)
+        .then(r => r.json())
+        .then(res => {
+            if (res && res.success) {
+                let existing = document.querySelector('.notification-badge');
+                if (res.unread_count > 0) {
+                    if (!existing) {
+                        // create badge and attach to bell
+                        const bell = document.querySelector('a[href="notifications.php"]');
+                        if (bell) {
+                            const span = document.createElement('span');
+                            span.className = 'notification-badge';
+                            span.textContent = res.unread_count;
+                            bell.appendChild(span);
+                        }
+                    } else {
+                        existing.textContent = res.unread_count;
+                    }
+                } else if (existing) {
+                    existing.remove();
+                }
+            }
+        }).catch(err=>{
+            // ignore network errors
+        });
+}
+
+// refresh immediately on load and then every 15 seconds
+refreshNotificationBadge();
+setInterval(refreshNotificationBadge, 15000);

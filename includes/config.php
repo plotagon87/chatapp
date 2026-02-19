@@ -201,6 +201,11 @@ function timeAgo($timestamp) {
 
 /**
  * Create notification
+ *
+ * @param int $user_id
+ * @param string $type one of 'message', 'group_invite', 'announcement', 'system', or 'presentation'
+ * @param string $content HTML/text to display
+ * @param int|null $related_id optional related record (message id, presentation id, etc.)
  */
 function createNotification($user_id, $type, $content, $related_id = null) {
     global $conn;

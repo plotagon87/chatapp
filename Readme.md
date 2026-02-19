@@ -367,6 +367,7 @@ Access admin features at `/admin/dashboard.php` (admin users only)
 - 📊 View online users in real-time
 - 📋 Monitor system activity logs
 - 👫 Manage groups and permissions
+- 📊 Presentation mode: upload slides, control access, announcements, download options
 
 ### Admin URLs
 - `/admin/dashboard.php` - Main admin dashboard

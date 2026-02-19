@@ -100,6 +100,7 @@ $recent_activities = $activities_stmt->fetchAll();
                             <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50">
                                 <a href="../profile.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Profile</a>
                                 <a href="../settings.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Settings</a>
+                                <a href="../presentation_settings.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Presentation Settings</a>
                                 <a href="../dashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">User Dashboard</a>
                                 <hr class="my-1">
                                 <a href="../logout.php" onclick="localStorage.removeItem('e2ee_private_jwk');" class="block px-4 py-2 text-red-600 hover:bg-red-50">Logout</a>

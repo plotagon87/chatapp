@@ -102,7 +102,7 @@ CREATE TABLE message_reactions (
 CREATE TABLE notifications (
     notification_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    notification_type ENUM('message', 'group_invite', 'announcement', 'system') NOT NULL,
+    notification_type ENUM('message', 'group_invite', 'announcement', 'system', 'presentation') NOT NULL,
     content TEXT NOT NULL,
     related_id INT DEFAULT NULL,
     is_read BOOLEAN DEFAULT FALSE,
@@ -120,6 +120,51 @@ CREATE TABLE activity_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
+
+-- Presentations feature tables with group support
+CREATE TABLE presentations (
+    presentation_id INT PRIMARY KEY AUTO_INCREMENT,
+    presenter_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    current_slide INT DEFAULT 1,
+    allow_download BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (presenter_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE presentation_files (
+    file_id INT PRIMARY KEY AUTO_INCREMENT,
+    presentation_id INT NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    slide_number INT NOT NULL DEFAULT 1,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (presentation_id) REFERENCES presentations(presentation_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE presentation_viewers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    presentation_id INT NOT NULL,
+    user_id INT DEFAULT NULL,
+    group_id INT DEFAULT NULL,
+    approved BOOLEAN DEFAULT FALSE,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (presentation_id) REFERENCES presentations(presentation_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES group_chats(group_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_viewer (presentation_id, user_id),
+    UNIQUE KEY unique_group_viewer (presentation_id, group_id),
+    CHECK ((user_id IS NOT NULL AND group_id IS NULL) OR (user_id IS NULL AND group_id IS NOT NULL))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE presentation_announcements (
+    announcement_id INT PRIMARY KEY AUTO_INCREMENT,
+    presentation_id INT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (presentation_id) REFERENCES presentations(presentation_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Insert default admin user (password: admin123)
 INSERT INTO users (username, email, password, full_name, role) 

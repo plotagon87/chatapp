@@ -260,12 +260,12 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             scrollbar-width: none;
         }
         
-        /* Notification badge */
+        /* Notification badge (blue to grab attention) */
         .notification-badge {
             position: absolute;
             top: -5px;
             right: -5px;
-            background: #ef4444;
+            background: #3b82f6; /* blue */
             color: white;
             border-radius: 50%;
             min-width: 20px;
@@ -402,14 +402,14 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 <div class="flex items-center space-x-2 lg:space-x-6">
                     <!-- Notification Bell -->
                     <div class="relative">
-                        <button class="text-gray-600 hover:text-purple-600 relative p-2">
+                        <a href="notifications.php" class="text-gray-600 hover:text-purple-600 relative p-2">
                             <svg class="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
                             <?php if ($unread_count > 0): ?>
                                 <span class="notification-badge"><?php echo $unread_count; ?></span>
                             <?php endif; ?>
-                        </button>
+                        </a>
                     </div>
                     
                     <!-- User Profile -->
@@ -438,6 +438,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                 <div class="py-1">
                                     <a href="profile.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Profile</a>
                                     <a href="settings.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Settings</a>
+                                    <a href="presentation_settings.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Presentation Settings</a>
                                     <a href="groups.php" class="block px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 transition-colors">Groups</a>
                                     <?php if (isAdmin()): ?>
                                         <a href="admin/dashboard.php" class="block px-4 py-3 text-sm text-purple-600 font-semibold hover:bg-purple-50 hover:text-purple-900 transition-colors border-t border-gray-200">Admin Panel</a>

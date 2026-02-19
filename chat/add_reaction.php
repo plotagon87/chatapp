@@ -61,9 +61,21 @@ try {
             $message = 'Reaction removed';
         } else {
             // Add new reaction
-            $stmt = $conn->prepare("INSERT INTO message_reactions (message_id, user_id, reaction_type) VALUES (?, ?, ?)");
-            $stmt->execute([$message_id, $user_id, $reaction_type]);
-            $message = 'Reaction added';
+            try {
+                $stmt = $conn->prepare("INSERT INTO message_reactions (message_id, user_id, reaction_type) VALUES (?, ?, ?)");
+                $stmt->execute([$message_id, $user_id, $reaction_type]);
+                $message = 'Reaction added';
+            } catch (PDOException $e) {
+                // handle race condition where two requests insert simultaneously
+                if (isset($e->errorInfo[1]) && $e->errorInfo[1] == 1062) {
+                    // duplicate entry – the reaction already exists, so toggle it off
+                    $stmt = $conn->prepare("DELETE FROM message_reactions WHERE message_id = ? AND user_id = ? AND reaction_type = ?");
+                    $stmt->execute([$message_id, $user_id, $reaction_type]);
+                    $message = 'Reaction removed';
+                } else {
+                    throw $e;
+                }
+            }
         }
     }
     

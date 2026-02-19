@@ -1,0 +1,37 @@
+<?php
+// New additional API actions for group-based presentation management
+// Add this at the end of the switch statement in presentation_api.php before the default case
+
+    case 'toggle_approval_id':
+        // Toggle approval by viewer ID (supports both user and group viewers)
+        $viewerId = intval($_POST['viewer_id'] ?? 0);
+        if (!$viewerId) {
+            echo json_encode(['success'=>false,'error'=>'invalid viewer id']);
+            break;
+        }
+        $stmt = $conn->prepare("UPDATE presentation_viewers SET approved = NOT approved WHERE id = ?");
+        $stmt->execute([$viewerId]);
+        echo json_encode(['success'=>true]);
+        break;
+    
+    case 'remove_viewer_id':
+        // Remove by viewer ID (supports both user and group viewers)
+        $viewerId = intval($_POST['viewer_id'] ?? 0);
+        if (!$viewerId) {
+            echo json_encode(['success'=>false,'error'=>'invalid viewer id']);
+            break;
+        }
+        // Verify presenter owns this presentation before deleting
+        $checkStmt = $conn->prepare("SELECT p.presenter_id FROM presentation_viewers pv JOIN presentations p ON pv.presentation_id = p.presentation_id WHERE pv.id = ?");
+        $checkStmt->execute([$viewerId]);
+        $presenterCheck = $checkStmt->fetch();
+        if ($presenterCheck && $presenterCheck['presenter_id'] == $userId) {
+            $stmt = $conn->prepare("DELETE FROM presentation_viewers WHERE id = ?");
+            $stmt->execute([$viewerId]);
+            echo json_encode(['success'=>true]);
+        } else {
+            echo json_encode(['success'=>false,'error'=>'unauthorized']);
+        }
+        break;
+
+?>

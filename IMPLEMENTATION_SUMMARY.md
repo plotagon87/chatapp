@@ -111,6 +111,43 @@
 - Uses MediaRecorder API with dynamic mime selection (webm/ogg)
 - Graceful fallback if browser does not support recording or playback; unsupported messages provide download link
 
+### Part 6: Presentation Module 📊 (NEW)
+**Files:**
+- `presentation_settings.php` – presenter dashboard
+- `presentation_view.php` – viewer/presenter viewing page
+- `api/presentation_api.php` – AJAX backend endpoint
+- `assets/js/presentation.js` – JS handling settings and polling
+- `migrations/004_create_presentations.sql` – new tables
+
+**Features:**
+- New dropdown link "Presentation Settings" alongside Profile, Settings, Groups
+- Presenter can upload project files/slides, manage their order
+- Only presenter may switch slides; viewers follow automatically via polling
+- Presenter can post short-lived announcements (30s) that appear on viewers' screens
+- Viewers may dismiss announcements via an 'X' button (removed instantly)
+- Approval system: only users approved by presenter can access presentation
+- Toggle to allow/disallow downloads for viewers once presentation ends
+- Active state to start/stop presentation
+
+**Database:**
+- `presentations` table tracking title, presenter, current slide, download permission, active flag
+- `presentation_files` for uploaded slides under each presentation
+- `presentation_viewers` storing authorized viewer list and approval status
+- `presentation_announcements` for temporary notices with expiry
+
+**UI/JS:**
+- AJAX-driven interactions with `presentation_api.php`
+- Presenter controls for title, slide navigation, viewer approvals, announcements
+- Viewer page polls every 2s for slide changes and new announcements
+- Announcements auto-expire after 30s and can be manually dismissed
+
+**Security:**
+- API checks for logged-in user and presenter ownership
+- Viewer access validated on each poll
+- CSRF tokens used for all POST requests
+
+---
+
 
 ### CSS Styling 🎨
 **File:** `dashboard.php` (lines 233-285)

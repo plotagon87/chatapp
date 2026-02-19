@@ -269,13 +269,13 @@ if ($group_id > 0) {
                         $isFile = in_array($msg['message_type'], ['file', 'image']);
                         $isVoice = $msg['message_type'] === 'voice';
                     ?>
-                    <div class="flex <?php echo $isSent ? 'justify-end' : 'justify-start'; ?> mb-4">
+                    <div class="flex <?php echo $isSent ? 'justify-end' : 'justify-start'; ?> mb-4" data-msg-id="<?php echo $msg['message_id']; ?>">
                         <div class="flex items-end <?php echo $isSent ? 'flex-row-reverse' : ''; ?> space-x-2 max-w-[70%]">
                             <img src="uploads/profiles/<?php echo $msg['sender_picture']; ?>" 
                                  alt="<?php echo htmlspecialchars($msg['sender_name']); ?>"
                                  class="w-8 h-8 rounded-full flex-shrink-0"
                                  onerror="this.src='assets/images/default.png'">
-                            <div class="<?php echo $isSent ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-800'; ?> rounded-lg p-3 shadow">
+                            <div class="relative group <?php echo $isSent ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-800'; ?> rounded-lg p-3 shadow">
                                 <?php if (!$isSent): ?>
                                 <p class="text-xs font-semibold text-purple-600 mb-1"><?php echo htmlspecialchars($msg['sender_name']); ?></p>
                                 <?php endif; ?>
@@ -309,6 +309,30 @@ if ($group_id > 0) {
                                 <p class="text-xs <?php echo $isSent ? 'text-purple-200' : 'text-gray-500'; ?> mt-1">
                                     <?php echo date('M d, h:i A', strtotime($msg['created_at'])); ?>
                                 </p>
+                                <!-- reactions display -->
+                                <?php
+                                if (!empty($msg['reactions'])) {
+                                    echo '<div class="message-reactions flex flex-wrap gap-1 mt-2">';
+                                    foreach ($msg['reactions'] as $reaction) {
+                                        $type = $reaction['reaction_type'];
+                                        $count = $reaction['count'];
+                                        $userReacted = in_array($type, $msg['user_reactions']);
+                                        $emoji = ['like'=>'👍','love'=>'❤️','haha'=>'😂','wow'=>'😮','sad'=>'😢','angry'=>'😠'][$type] ?? $type;
+                                        $badgeClass = $userReacted ? 'bg-purple-100 border-purple-300' : 'bg-gray-100 border-gray-300';
+                                        echo "<span class=\"inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs $badgeClass border cursor-pointer hover:scale-110 transition-transform\" onclick=\"addReaction({$msg['message_id']}, '$type')\" title=\"Reacted with $type\">";
+                                        echo "<span>$emoji</span><span class=\"font-semibold\">$count</span></span>";
+                                    }
+                                    echo '</div>'; 
+                                } else {
+                                    echo '<div class="message-reactions"></div>';
+                                }
+                                ?>
+                                <!-- reaction button -->
+                                <button onclick="showReactionPicker(<?php echo $msg['message_id']; ?>, event)" class="absolute -top-2 -right-2 bg-white border border-gray-300 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110" title="Add reaction">
+                                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -559,7 +583,7 @@ if ($group_id > 0) {
             }
             updateRecordingTimerGroup();
         }
-        }
+
 
         // Auto-scroll to bottom
         document.addEventListener('DOMContentLoaded', function() {
@@ -621,6 +645,117 @@ if ($group_id > 0) {
             reader.readAsArrayBuffer(file);
         }
 
+        // ============================================
+        // MESSAGE REACTIONS (group-specific globals)
+        // ============================================
+        function showReactionPicker(messageId, event) {
+            event.stopPropagation();
+            const existing = document.getElementById('reactionPicker');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+            const picker = document.createElement('div');
+            picker.id = 'reactionPicker';
+            picker.className = 'absolute bg-white rounded-lg shadow-2xl p-2 z-50 border border-gray-200 flex space-x-1';
+            // position near click but keep within viewport
+            let left = event.pageX;
+            let top = event.pageY - 50;
+            const pad = 10;
+            const pickerWidth = 200; // approximate
+            const pickerHeight = 60;
+            if (left + pickerWidth + pad > window.innerWidth) {
+                left = window.innerWidth - pickerWidth - pad;
+            }
+            if (top < pad) {
+                top = pad;
+            } else if (top + pickerHeight + pad > window.innerHeight) {
+                top = window.innerHeight - pickerHeight - pad;
+            }
+            picker.style.left = left + 'px';
+            picker.style.top = top + 'px';
+            const reactionEmojis = { 'like':'👍','love':'❤️','haha':'😂','wow':'😮','sad':'😢','angry':'😠' };
+            let html = '';
+            for (const [type, emoji] of Object.entries(reactionEmojis)) {
+                html += `<button onclick="addReaction(${messageId}, '${type}')" class="text-2xl hover:scale-125 transition-transform p-1 rounded hover:bg-gray-100" title="${type}">${emoji}</button>`;
+            }
+            picker.innerHTML = html;
+            document.body.appendChild(picker);
+            setTimeout(() => {
+                document.addEventListener('click', function closeReactionPicker(e) {
+                    if (!e.target.closest('#reactionPicker')) {
+                        picker.remove();
+                        document.removeEventListener('click', closeReactionPicker);
+                    }
+                });
+            }, 100);
+        }
+
+        async function addReaction(messageId, reactionType) {
+            const picker = document.getElementById('reactionPicker');
+            if (picker) picker.remove();
+
+            // disable while processing
+            const msgElem = document.querySelector(`[data-msg-id="${messageId}"] .message-reactions`);
+            if (msgElem) {
+                msgElem.classList.add('opacity-50','pointer-events-none');
+            }
+
+            try {
+                let action = 'add';
+                if (msgElem) {
+                    const badge = msgElem.querySelector(`span[onclick*="addReaction(${messageId}, '${reactionType}')"]`);
+                    if (badge && badge.classList.contains('bg-purple-100')) {
+                        action = 'remove';
+                    }
+                }
+
+                const formData = new FormData();
+                formData.append('message_id', messageId);
+                formData.append('reaction_type', reactionType);
+                formData.append('action', action);
+                formData.append('csrf_token', csrfToken);
+                const response = await fetch(`${baseUrl}chat/add_reaction.php`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    updateMessageReactions(messageId, data.reactions, data.user_reactions);
+                } else {
+                    console.error('Failed to add reaction:', data.message);
+                }
+            } catch (error) {
+                console.error('Reaction error:', error);
+            } finally {
+                if (msgElem) {
+                    msgElem.classList.remove('opacity-50','pointer-events-none');
+                }
+            }
+        }
+
+        function updateMessageReactions(messageId, reactions, userReactions) {
+            const msgElem = document.querySelector(`[data-msg-id="${messageId}"]`);
+            if (!msgElem) return;
+            let container = msgElem.querySelector('.message-reactions');
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'message-reactions flex flex-wrap gap-1 mt-2';
+                msgElem.appendChild(container);
+            }
+            container.innerHTML = '';
+            reactions.forEach(r => {
+                const isUser = userReactions && userReactions.includes(r.reaction_type);
+                const emojiMap = { 'like':'👍','love':'❤️','haha':'😂','wow':'😮','sad':'😢','angry':'😠' };
+                const emoji = emojiMap[r.reaction_type] || r.reaction_type;
+                const badge = document.createElement('span');
+                badge.className = `inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${isUser? 'bg-purple-100 border-purple-300' : 'bg-gray-100 border-gray-300'} border cursor-pointer hover:scale-110 transition-transform`;
+                badge.onclick = () => addReaction(messageId, r.reaction_type);
+                badge.title = r.reaction_type;
+                badge.innerHTML = `<span>${emoji}</span><span class="font-semibold">${r.count}</span>`;
+                container.appendChild(badge);
+            });
+        }
         // Render emoji picker
         function renderEmojiPicker() {
             const grid = document.getElementById('emojiGrid');
@@ -750,6 +885,7 @@ if ($group_id > 0) {
             const formData = new FormData();
             formData.append('ajax_send_message', '1');
             formData.append('message_text', message);
+            formData.append('csrf_token', csrfToken);
             
             fetch(window.location.href, {
                 method: 'POST',
