@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_theme'])) {
     <!-- Theme color (shows in Android status bar when PWA is installed) -->
     <meta name="theme-color" content="#7c3aed">
     <title>Settings - LAN Chat</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="assets/css/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
     <!-- Top Navigation -->

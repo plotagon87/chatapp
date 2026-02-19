@@ -143,7 +143,7 @@ if ($group_id > 0) {
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#7c3aed">
     <title><?php echo $group ? htmlspecialchars($group['group_name']) . ' - Group Chat' : 'Group Chat'; ?> - LAN Chat</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="assets/css/tailwind.min.css" rel="stylesheet">
     <script>
         const currentUserId = <?php echo $_SESSION['user_id']; ?>;
         const csrfToken = '<?php echo $_SESSION['csrf_token']; ?>';

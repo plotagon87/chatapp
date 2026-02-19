@@ -52,7 +52,7 @@ $recent_activities = $activities_stmt->fetchAll();
             const csrfToken = '<?php echo $_SESSION['csrf_token'] ?? ''; ?>';
             const baseUrl = '<?php echo BASE_URL; ?>';
         </script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="../assets/css/tailwind.min.css" rel="stylesheet">
     <style>
         .stat-card {
             transition: transform 0.2s ease-in-out;
