@@ -4,7 +4,7 @@ requireLogin();
 
 $user_id = $_SESSION['user_id'];
 $error = '';
-success = '';
+$success = '';
 
 // Handle export or deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
