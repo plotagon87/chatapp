@@ -8,18 +8,22 @@ $success = '';
 
 // Handle actions: logout others or kill specific session
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['logout_others'])) {
-        clearOtherUserSessions(false);
-        logActivity($_SESSION['user_id'], 'Logged out other sessions');
-        $success = 'Other devices have been logged out';
-    } elseif (isset($_POST['kill_session']) && !empty($_POST['session_id'])) {
-        $sid = $_POST['session_id'];
-        if ($sid === session_id()) {
-            // can't kill current session here
-        } else {
-            killUserSession($sid);
-            logActivity($_SESSION['user_id'], 'Terminated session ' . substr($sid,0,8));
-            $success = 'Selected session terminated';
+    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid CSRF token';
+    } else {
+        if (isset($_POST['logout_others'])) {
+            clearOtherUserSessions(false);
+            logActivity($_SESSION['user_id'], 'Logged out other sessions');
+            $success = 'Other devices have been logged out';
+        } elseif (isset($_POST['kill_session']) && !empty($_POST['session_id'])) {
+            $sid = $_POST['session_id'];
+            if ($sid === session_id()) {
+                // can't kill current session here
+            } else {
+                killUserSession($sid);
+                logActivity($_SESSION['user_id'], 'Terminated session ' . substr($sid,0,8));
+                $success = 'Selected session terminated';
+            }
         }
     }
 }
@@ -66,6 +70,7 @@ $sessions = getUserSessions($_SESSION['user_id']);
 
         <div class="mb-6">
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <button name="logout_others" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700" onclick="return confirm('Log out all other sessions?');">
                     Log out of other devices
                 </button>
@@ -93,6 +98,7 @@ $sessions = getUserSessions($_SESSION['user_id']);
                         <td class="px-4 py-2 text-sm">
                             <?php if ($s['session_id'] !== session_id()): ?>
                                 <form method="POST" class="inline-block">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                     <input type="hidden" name="session_id" value="<?php echo htmlspecialchars($s['session_id']); ?>">
                                     <button name="kill_session" class="text-red-600 hover:underline" onclick="return confirm('Terminate this session?');">Logout</button>
                                 </form>

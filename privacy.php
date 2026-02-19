@@ -8,9 +8,11 @@ success = '';
 
 // Handle export or deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['export_data'])) {
+    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid CSRF token';
+    } elseif (isset($_POST['export_data'])) {
         // gather user data
-        $stmt = $conn->prepare("SELECT * FROM users WHERE user_id = ?");
+        $stmt = $conn->prepare("SELECT user_id, username, email, full_name, profile_picture, role, status, custom_status, theme_preference, last_seen, created_at, public_key FROM users WHERE user_id = ?");
         $stmt->execute([$user_id]);
         $export = [];
         $export['user'] = $stmt->fetch();
@@ -91,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="mb-8">
             <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <button name="export_data" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
                     Download My Data
                 </button>
@@ -100,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="border-t pt-6">
             <h2 class="text-xl font-semibold mb-4">Account Removal</h2>
             <form method="POST" onsubmit="return confirm('Are you sure you want to permanently delete your account and all associated data? This cannot be undone.');">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <button name="delete_account" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
                     Delete My Account
                 </button>
