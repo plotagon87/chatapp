@@ -191,6 +191,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_theme'])) {
                 </form>
             </div>
 
+            <!-- Session & Privacy Links -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Security & Privacy</h2>
+                <div class="space-y-4">
+                    <a href="sessions.php" class="block bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg">
+                        🖥️ Manage Active Sessions &amp; Logout Other Devices
+                    </a>
+                    <a href="privacy.php" class="block bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg">
+                        🔒 Privacy Dashboard (Download or Delete Data)
+                    </a>
+                </div>
+            </div>
+
             <!-- Security Settings -->
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">

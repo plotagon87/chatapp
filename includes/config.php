@@ -164,6 +164,55 @@ function logActivity($user_id, $action) {
 }
 
 /**
+ * Register or refresh a session row for the current user.
+ * Should be called after successful login and on each page load.
+ */
+function registerUserSession($user_id) {
+    global $conn;
+    $session_id = session_id();
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+    $stmt = $conn->prepare(
+        "REPLACE INTO user_sessions (session_id, user_id, ip_address, user_agent, last_activity) VALUES (?, ?, ?, ?, NOW())"
+    );
+    $stmt->execute([$session_id, $user_id, $ip, $ua]);
+}
+
+function refreshUserSession() {
+    global $conn;
+    $stmt = $conn->prepare("UPDATE user_sessions SET last_activity = NOW() WHERE session_id = ?");
+    $stmt->execute([session_id()]);
+}
+
+function clearOtherUserSessions($current_only = false) {
+    global $conn;
+    $current = session_id();
+    if ($current_only) {
+        // delete all for current session, essentially logout
+        $stmt = $conn->prepare("DELETE FROM user_sessions WHERE session_id = ?");
+        $stmt->execute([$current]);
+    } else {
+        $stmt = $conn->prepare("DELETE FROM user_sessions WHERE session_id != ? AND user_id = ?");
+        $stmt->execute([$current, $_SESSION['user_id']]);
+    }
+}
+
+function getUserSessions($user_id) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT session_id, ip_address, user_agent, last_activity, created_at FROM user_sessions WHERE user_id = ? ORDER BY last_activity DESC");
+    $stmt->execute([$user_id]);
+    return $stmt->fetchAll();
+}
+
+function killUserSession($session_id) {
+    global $conn;
+    $stmt = $conn->prepare("DELETE FROM user_sessions WHERE session_id = ? AND user_id = ?");
+    $stmt->execute([$session_id, $_SESSION['user_id']]);
+}
+
+
+/**
  * Get user data by ID
  */
 function getUserData($user_id) {
@@ -217,5 +266,8 @@ function createNotification($user_id, $type, $content, $related_id = null) {
 if (isLoggedIn()) {
     updateUserStatus($_SESSION['user_id'], 'online');
     updateLastSeen($_SESSION['user_id']);
+    // maintain session tracking table
+    registerUserSession($_SESSION['user_id']);
+    refreshUserSession();
 }
 ?>

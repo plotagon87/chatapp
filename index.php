@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 updateUserStatus($user['user_id'], 'online');
                 logActivity($user['user_id'], 'User logged in');
+                registerUserSession($user['user_id']);
                 
                 header('Location: dashboard.php');
                 exit();

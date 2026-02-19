@@ -64,7 +64,13 @@ SELECT
     'activity_log' AS Table_Name,
     IF(COUNT(*) > 0, '✓ EXISTS', '✗ MISSING') AS Status
 FROM INFORMATION_SCHEMA.TABLES 
-WHERE TABLE_SCHEMA = 'lan_chat_db' AND TABLE_NAME = 'activity_log';
+WHERE TABLE_SCHEMA = 'lan_chat_db' AND TABLE_NAME = 'activity_log'
+UNION ALL
+SELECT 
+    'user_sessions' AS Table_Name,
+    IF(COUNT(*) > 0, '✓ EXISTS', '✗ MISSING') AS Status
+FROM INFORMATION_SCHEMA.TABLES 
+WHERE TABLE_SCHEMA = 'lan_chat_db' AND TABLE_NAME = 'user_sessions';
 
 -- 3. Verify Presentation Tables (Migration 004) exist
 SELECT '=== PRESENTATION TABLES (Migration 004) ===' AS Check_Type;

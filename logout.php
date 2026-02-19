@@ -9,6 +9,11 @@ if (isset($_SESSION['user_id'])) {
     $stmt->execute([$user_id]);
     
     logActivity($user_id, 'User logged out');
+    // remove entry from user_sessions table as well
+    if (session_id()) {
+        $stmt = $conn->prepare("DELETE FROM user_sessions WHERE session_id = ?");
+        $stmt->execute([session_id()]);
+    }
     
     // Clear all session variables
     $_SESSION = array();
