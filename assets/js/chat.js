@@ -79,6 +79,9 @@ class SimpleChat {
         
         // Initialize the chat system
         this.init();
+        // also start periodic badge refresh
+        this.refreshUserBadges();
+        setInterval(() => this.refreshUserBadges(), 15000);
     }
 
     // ============================================
@@ -1536,16 +1539,39 @@ class SimpleChat {
     }
 
     // ============================================
-    // OPEN CHAT
-    // Opens chat window with selected user
-    // @param {number} userId - ID of user to chat with
-    // @param {string} fullName - Full name of user
-    // @param {string} username - Username
-    // @param {string} profilePicture - Profile picture filename
+    // REFRESH USER BADGES
+    // Polls the get_users endpoint to update unread counts next to each user
     // ============================================
-    openChat(userId, fullName, username, profilePicture) {
-        console.log('🚀 Opening chat with user:', userId);
-        
+    async refreshUserBadges() {
+        try {
+            const response = await fetch(`${window.baseUrl}chat/get_users.php`);
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data.success) return;
+            data.users.forEach(u => {
+                const item = document.querySelector(`.user-item[data-user-id="${u.user_id}"]`);
+                if (!item) return;
+                let badge = item.querySelector('.unread-badge');
+                if (u.unread_count > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'unread-badge';
+                        item.appendChild(badge);
+                    }
+                    badge.textContent = u.unread_count;
+                } else if (badge) {
+                    badge.remove();
+                }
+            });
+        } catch (err) {
+            console.warn('Failed to refresh user badges', err);
+        }
+    }
+        if (item) {
+            const badge = item.querySelector('.unread-badge');
+            if (badge) badge.remove();
+        }
+
         // Set current chat user
         this.currentChatUser = userId;
         this.lastMessageCount = 0; // Reset message counter

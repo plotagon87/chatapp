@@ -292,6 +292,23 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 min-width: 44px;
             }
         }
+
+        /* badge shown on user listing when there are unread messages */
+        .user-item {
+            position: relative;
+        }
+        .unread-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ef4444; /* red */
+            color: white;
+            border-radius: 9999px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            line-height: 1;
+        }
         
         /* Prevent iOS zoom on input focus */
         input[type="text"],
@@ -530,6 +547,9 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                         class="w-12 h-12 rounded-full"
                                         onerror="if(this.src != '<?php echo $default_path; ?>') this.src='<?php echo $default_path; ?>';">
                                     <span class="online-dot <?php echo $user['status']; ?> absolute bottom-0 right-0 border-2 border-white"></span>
+                                    <?php if (!empty($user['unread_count']) && $user['unread_count'] > 0): ?>
+                                        <span class="unread-badge"><?php echo $user['unread_count']; ?></span>
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <!-- User Info -->
