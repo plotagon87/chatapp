@@ -191,6 +191,11 @@ Features:
 - [ ] File upload modal functional
 - [ ] Upload progress tracking works
 - [ ] Messages reload after upload
+- [ ] Audio recording button present and toggles red when recording
+- [ ] Timer displayed while recording, stops at 60 seconds and recording auto‑stops
+- [ ] Waveform preview shown after stopping a recording (before upload)
+- [ ] Recorded audio uploads when "Upload" is clicked and appears in chat
+- [ ] When playback isn't supported by browser, a download link/text is shown
 
 Mobile:
 - [ ] Responsive design tested on phone

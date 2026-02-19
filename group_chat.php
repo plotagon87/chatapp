@@ -163,7 +163,7 @@ if ($group_id > 0) {
         const fileCategories = {
             'Photos': { icon: '📷', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] },
             'Documents': { icon: '📄', extensions: ['pdf', 'doc', 'docx', 'txt', 'xlsx', 'xls'] },
-            'Audio': { icon: '🎵', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac'] },
+            'Audio': { icon: '🎵', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'webm'] },
             'Other': { icon: '📎', extensions: ['zip', 'rar', '7z', 'tar', 'gz'] }
         };
     </script>
@@ -267,6 +267,7 @@ if ($group_id > 0) {
                     <?php foreach ($messages as $msg): 
                         $isSent = $msg['sender_id'] == $_SESSION['user_id'];
                         $isFile = in_array($msg['message_type'], ['file', 'image']);
+                        $isVoice = $msg['message_type'] === 'voice';
                     ?>
                     <div class="flex <?php echo $isSent ? 'justify-end' : 'justify-start'; ?> mb-4">
                         <div class="flex items-end <?php echo $isSent ? 'flex-row-reverse' : ''; ?> space-x-2 max-w-[70%]">
@@ -279,7 +280,18 @@ if ($group_id > 0) {
                                 <p class="text-xs font-semibold text-purple-600 mb-1"><?php echo htmlspecialchars($msg['sender_name']); ?></p>
                                 <?php endif; ?>
                                 
-                                <?php if ($isFile && $msg['file_path']): ?>
+                                <?php if ($isVoice && $msg['file_path']): ?>
+                                    <?php
+                                        $ext = pathinfo($msg['file_path'], PATHINFO_EXTENSION);
+                                        $mime = 'audio/' . $ext;
+                                        if ($ext === 'webm') $mime = 'audio/webm;codecs=opus';
+                                        if ($ext === 'ogg') $mime = 'audio/ogg;codecs=opus';
+                                    ?>
+                                    <audio controls class="max-w-xs">
+                                        <source src="uploads/<?php echo htmlspecialchars($msg['file_path']); ?>" type="<?php echo $mime; ?>">
+                                        Your browser does not support audio playback. <a href="uploads/<?php echo htmlspecialchars($msg['file_path']); ?>" download>Download</a>
+                                    </audio>
+                                <?php elseif ($isFile && $msg['file_path']): ?>
                                     <?php if ($msg['message_type'] === 'image'): ?>
                                     <img src="uploads/<?php echo htmlspecialchars($msg['file_path']); ?>" alt="Image" class="max-w-xs rounded" onclick="window.open(this.src, '_blank')">
                                     <?php else: ?>
@@ -307,6 +319,13 @@ if ($group_id > 0) {
             <!-- Message Input -->
             <div class="bg-white border-t border-gray-200 p-4">
                 <form id="messageForm" class="flex items-center space-x-3">
+                    <!-- Audio Record Button -->
+                    <button type="button" id="audioRecordBtn" class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-purple-50 transition" title="Record audio">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4m0 14v4m4-10a4 4 0 01-8 0V7a4 4 0 018 0z" />
+                        </svg>
+                    </button>
+                    <span id="recordingTimer" class="ml-2 text-xs text-gray-600"></span>
                     <!-- File Upload Button -->
                     <button type="button" onclick="showFileUploadModal()" class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-purple-50 transition">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,10 +457,108 @@ if ($group_id > 0) {
 
     <script>
         let selectedFile = null;
+        // audio recording state
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        // recording helpers
+        let maxRecordingSeconds = 60; // 1 minute cap
+        let recordingTimer = null;
+        let recordingTimeElapsed = 0;
 
         // Toggle members panel
         function toggleMembersPanel() {
             document.getElementById('membersPanel').classList.toggle('hidden');
+        }
+
+        // start voice recording
+        function startRecordingGroup() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Audio recording not supported');
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                recordedChunks = [];
+                // choose mime type
+                let mime = 'audio/webm';
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    mime = 'audio/webm;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                    mime = 'audio/ogg;codecs=opus';
+                }
+                try {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+                } catch (e) {
+                    console.warn('could not set mime type for recorder', e);
+                    mediaRecorder = new MediaRecorder(stream);
+                }
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+                mediaRecorder.onstop = () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    handleRecordingCompleteGroup();
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                recordingTimeElapsed = 0;
+                recordingTimer = setInterval(() => {
+                    recordingTimeElapsed++;
+                    updateRecordingTimerGroup();
+                    if (recordingTimeElapsed >= maxRecordingSeconds) {
+                        stopRecordingGroup();
+                        alert('Maximum recording duration reached');
+                    }
+                }, 1000);
+                updateRecordingButtonGroup();
+            }).catch(err => {
+                console.error('mic error', err);
+                alert('Microphone access denied');
+            });
+        }
+
+        function stopRecordingGroup() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                if (recordingTimer) {
+                    clearInterval(recordingTimer);
+                    recordingTimer = null;
+                }
+                updateRecordingButtonGroup();
+                updateRecordingTimerGroup();
+            }
+        }
+
+        function handleRecordingCompleteGroup() {
+            if (recordedChunks.length === 0) return;
+            // determine mime/extension from recorder if available
+            let mime = mediaRecorder && mediaRecorder.mimeType ? mediaRecorder.mimeType : 'audio/webm';
+            const ext = mime.includes('ogg') ? 'ogg' : 'webm';
+            const blob = new Blob(recordedChunks, { type: mime });
+            const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mime });
+            selectedFile = file;
+            // show in preview area with waveform
+            document.getElementById('filePreview').classList.remove('hidden');
+            document.getElementById('filePreview').innerHTML = `
+                <audio controls class="w-full"><source src="${URL.createObjectURL(file)}" type="${mime}">Your browser does not support audio playback.</audio>
+                <canvas class="waveform-canvas mt-2 w-full h-12"></canvas>`;
+            drawWaveformGroup(file, document.querySelector('#filePreview .waveform-canvas'));
+            document.getElementById('uploadBtn').disabled = false;
+        }
+
+        function updateRecordingButtonGroup() {
+            const btn = document.getElementById('audioRecordBtn');
+            if (!btn) return;
+            if (isRecording) {
+                btn.innerHTML = `<svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
+                btn.title = 'Stop recording';
+            } else {
+                btn.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4m0 14v4m4-10a4 4 0 01-8 0V7a4 4 0 018 0z"/></svg>`;
+                btn.title = 'Record audio';
+            }
+            updateRecordingTimerGroup();
+        }
         }
 
         // Auto-scroll to bottom
@@ -449,7 +566,60 @@ if ($group_id > 0) {
             const container = document.getElementById('chatMessages');
             container.scrollTop = container.scrollHeight;
             renderEmojiPicker();
+
+            // bind audio button if present
+            const audioBtn = document.getElementById('audioRecordBtn');
+            if (audioBtn) {
+                audioBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (isRecording) {
+                        stopRecordingGroup();
+                    } else {
+                        startRecordingGroup();
+                    }
+                });
+                updateRecordingButtonGroup();
+            }
         });
+
+        // waveform helper, timer, compatibility
+        function updateRecordingTimerGroup() {
+            const span = document.getElementById('recordingTimer');
+            if (!span) return;
+            span.textContent = isRecording ? `${recordingTimeElapsed}s` : '';
+        }
+
+        function canPlayAudioTypeGroup(mime) {
+            const a = document.createElement('audio');
+            return !!(a.canPlayType && a.canPlayType(mime));
+        }
+
+        function drawWaveformGroup(file, canvas) {
+            if (!canvas || !file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioCtx.decodeAudioData(e.target.result, (buffer) => {
+                    const data = buffer.getChannelData(0);
+                    const step = Math.ceil(data.length / canvas.width);
+                    const amp = canvas.height / 2;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#a78bfa';
+                    for (let i = 0; i < canvas.width; i++) {
+                        let min = 1.0;
+                        let max = -1.0;
+                        for (let j = 0; j < step; j++) {
+                            const datum = data[(i * step) + j];
+                            if (datum < min) min = datum;
+                            if (datum > max) max = datum;
+                        }
+                        ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+                    }
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
         // Render emoji picker
         function renderEmojiPicker() {
@@ -511,7 +681,20 @@ if ($group_id > 0) {
                 }
                 selectedFile = file;
                 document.getElementById('filePreview').classList.remove('hidden');
-                document.getElementById('fileName').textContent = file.name;
+                // if audio, show player + waveform else just show file name
+                if (file.type.startsWith('audio/')) {
+                    document.getElementById('filePreview').innerHTML = `
+                        <audio controls class="w-full">
+                            <source src="${URL.createObjectURL(file)}" type="${file.type}">
+                            Your browser does not support audio playback.
+                        </audio>
+                        <canvas class="waveform-canvas mt-2 w-full h-12"></canvas>`;
+                    const canvas = document.querySelector('#filePreview .waveform-canvas');
+                    drawWaveformGroup(file, canvas);
+                } else {
+                    document.getElementById('filePreview').innerHTML = '';
+                    document.getElementById('fileName').textContent = file.name;
+                }
                 document.getElementById('uploadBtn').disabled = false;
             }
         }

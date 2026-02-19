@@ -63,7 +63,7 @@
 ```javascript
 ✅ Photos:     jpg, jpeg, png, gif, bmp, webp (6 types)
 ✅ Documents:  pdf, doc, docx, txt, xlsx, xls, ppt, pptx (8 types)
-✅ Audio:      mp3, wav, ogg, m4a, flac (5 types)
+✅ Audio:      mp3, wav, ogg, m4a, flac, webm (6 types)
 ✅ Other:      zip, rar, 7z, tar, gz, exe, sh (7 types)
    Total: 26 file types
 ```
@@ -112,6 +112,36 @@
 ✅ Reload messages after upload
 ✅ Success/failure feedback
 ✅ CSRF token included
+```
+
+---
+
+### Part 5: Voice Recording Implementation
+
+**File:** `assets/js/chat.js`
+
+**Verified Methods:**
+```javascript
+✅ bindAudioRecording()              - Line ~488
+✅ startRecording()                  - Line ~518
+✅ stopRecording()                   - Line ~537
+✅ handleRecordingComplete()         - Line ~557
+✅ updateRecordingButton()           - Line ~582
+```
+
+**Features:**
+```javascript
+✅ Microphone button added to input area
+✅ Click to start recording (button turns red)
+✅ Click again stops and uploads automatically
+✅ Audio chunks captured via MediaRecorder
+✅ Recording limited to 60 seconds (timer verified)
+✅ Waveform preview shown before upload
+✅ Recording uploads as .webm voice message (or .ogg as fallback)
+✅ Voice messages saved in uploads/voice/
+✅ Playback in chat bubbles includes compatibility check; download link shown if unsupported
+✅ Works for both one-to-one and group chats
+✅ Graceful fallback when mic permission denied
 ```
 
 ---

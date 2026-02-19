@@ -418,6 +418,45 @@ Uploads a single file to the server.
 **Returns:** `true` if successful, `false` if failed
 
 **Server Endpoint:** `chat/upload_file.php`
+
+---
+
+#### Utility Methods (Client-side)
+
+- `canPlayAudioType(mime)` – returns `true` if the browser can play the specified audio MIME type.
+- `drawWaveform(file, canvas)` – renders a simple waveform preview of the audio file into the given `<canvas>` element.
+- `updateRecordingTimer()` – refreshes the text of the timer element adjacent to the microphone button.
+
+---
+
+#### `startRecording()` / `stopRecording()`
+Control microphone capture for voice messages. Recording is toggled automatically when the audio button is clicked; these methods can also be called directly from the console.
+
+**Behavior:**
+1. `startRecording()` requests microphone access and begins capturing audio chunks.
+2. When `stopRecording()` is invoked (or button clicked again), recording stops, the audio blob is converted to a `File`, and `uploadFile()` is called to send the voice message to the current chat user.
+3. Button icon updates to indicate recording state.
+
+**Returns:**
+- `startRecording()` may throw if access denied
+- `stopRecording()` returns immediately
+
+**Example:**
+```javascript
+// start manually
+window.simpleChat.startRecording();
+// ...speak...
+window.simpleChat.stopRecording();
+// voice message will be uploaded automatically
+```
+
+**Notes:**
+- Only available when a chat is open (`currentChatUser` set).
+- Requires browser support for `navigator.mediaDevices.getUserMedia` and `MediaRecorder`.
+- Maximum recording duration is **60 seconds**; a timer is displayed while capturing.
+- After stopping the recording a waveform preview appears before upload; the user may cancel or manually trigger `uploadSelectedFiles()`.
+- Audio is encoded as WebM/Opus (fallback to Ogg if WebM unsupported). Playback will fall back to a download link when the browser cannot play the format.
+
 **Method:** POST
 **FormData:**
 - `file`: The file object

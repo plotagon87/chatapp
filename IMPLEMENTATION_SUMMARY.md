@@ -88,6 +88,30 @@
 **Server Endpoint:**
 - `POST /chat/upload_file.php`
 
+### Part 5: Voice Recording 🎤 (NEW)
+**File:** `assets/js/chat.js` (lines 490-655)
+
+**Features:**
+- Microphone icon next to attachment buttons
+- Click to start/stop recording; button turns red while recording
+- Recording limited to 60 seconds; a timer appears during capture
+- Waveform preview shown after recording, user confirms before upload
+- Automatically uploads recorded audio as `.webm` (or `.ogg`) voice message
+- Stored in `uploads/voice/` and displayed with inline audio player (fallback link if unsupported)
+- Works for both one-to-one and group chats
+
+**Methods:**
+- `bindAudioRecording()` - Attach button listener
+- `startRecording()` - Begin microphone capture
+- `stopRecording()` - End capture and trigger upload
+- `handleRecordingComplete()` - Convert chunks to file & upload
+- `updateRecordingButton()` - Toggle icon/state
+
+**UI Notes:**
+- Uses MediaRecorder API with dynamic mime selection (webm/ogg)
+- Graceful fallback if browser does not support recording or playback; unsupported messages provide download link
+
+
 ### CSS Styling 🎨
 **File:** `dashboard.php` (lines 233-285)
 
@@ -109,9 +133,10 @@
 Emoji Picker:      68 lines of code
 File Upload Modal: 370 lines of code  
 Upload Handler:    107 lines of code
+Voice Recording:   166 lines of code
 CSS Styles:        53 lines of code
 ────────────────────────────────
-TOTAL:            598 lines of code
+TOTAL:            764 lines of code
 
 + Well-commented with section headers
 + Organized into logical parts

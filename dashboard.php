@@ -620,6 +620,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v4m0 14v4m4-10a4 4 0 01-8 0V7a4 4 0 018 0z" />
                                         </svg>
                                     </button>
+                                    <span id="recordingTimer" class="ml-2 text-xs text-gray-600"></span>
                                     
                                     <!-- File Upload Button -->
                                     <button type="button" id="fileUploadBtn" class="text-gray-500 hover:text-purple-600 flex-shrink-0">

@@ -60,7 +60,12 @@ class SimpleChat {
         // Audio recording state
         this.isRecording = false;
         this.mediaRecorder = null;
-        this.recordedChunks = [];        
+        this.recordedChunks = [];
+        // recording helpers
+        this.maxRecordingSeconds = 60; // limit to 1 minute
+        this.recordingTimer = null;
+        this.recordingTimeElapsed = 0;
+        
         // Reaction emojis mapping
         // Maps reaction type names to their emoji characters
         this.reactionEmojis = {
@@ -567,6 +572,8 @@ class SimpleChat {
                 this.startRecording();
             }
         });
+        // ensure button icon reflects current state
+        this.updateRecordingButton();
     }
 
     startRecording() {
@@ -577,7 +584,19 @@ class SimpleChat {
 
         navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
             this.recordedChunks = [];
-            this.mediaRecorder = new MediaRecorder(stream);
+            // choose a mime type the browser can handle
+            let mime = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mime = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                mime = 'audio/ogg;codecs=opus';
+            }
+            try {
+                this.mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+            } catch (e) {
+                console.warn('Failed to set mimeType, using default', e);
+                this.mediaRecorder = new MediaRecorder(stream);
+            }
             this.mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) {
                     this.recordedChunks.push(e.data);
@@ -589,6 +608,16 @@ class SimpleChat {
             };
             this.mediaRecorder.start();
             this.isRecording = true;
+            this.recordingTimeElapsed = 0;
+            // start duration timer
+            this.recordingTimer = setInterval(() => {
+                this.recordingTimeElapsed++;
+                this.updateRecordingTimer();
+                if (this.recordingTimeElapsed >= this.maxRecordingSeconds) {
+                    this.stopRecording();
+                    alert('Maximum recording duration reached');
+                }
+            }, 1000);
             this.updateRecordingButton();
         }).catch(err => {
             console.error('Microphone access error:', err);
@@ -600,20 +629,26 @@ class SimpleChat {
         if (this.mediaRecorder && this.isRecording) {
             this.mediaRecorder.stop();
             this.isRecording = false;
+            if (this.recordingTimer) {
+                clearInterval(this.recordingTimer);
+                this.recordingTimer = null;
+            }
             this.updateRecordingButton();
+            this.updateRecordingTimer();
         }
     }
 
     handleRecordingComplete() {
         if (this.recordedChunks.length === 0) return;
-        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-        const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
-        // Immediately upload the recorded audio as a voice message
-        this.uploadFile(file, this.currentChatUser).then(success => {
-            if (success) {
-                this.loadMessages(this.currentChatUser);
-            }
-        });
+        // determine extension from mime type
+        const mime = this.mediaRecorder && this.mediaRecorder.mimeType ? this.mediaRecorder.mimeType : 'audio/webm';
+        const ext = mime.includes('ogg') ? 'ogg' : 'webm';
+        const blob = new Blob(this.recordedChunks, { type: mime });
+        const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mime });
+        // show preview and require explicit upload
+        this.selectedFiles = { Audio: [file] };
+        this.updateFilePreview('Audio');
+        this.showFileUploadModal(this.currentChatUser);
     }
 
     updateRecordingButton() {
@@ -636,6 +671,61 @@ class SimpleChat {
             `;
             btn.title = 'Record audio';
         }
+        this.updateRecordingTimer();
+    }
+
+    // ============================================
+    // RECORDING TIMER DISPLAY
+    // Updates the small timer element next to the record button
+    // ============================================
+    updateRecordingTimer() {
+        const span = document.getElementById('recordingTimer');
+        if (!span) return;
+        if (this.isRecording) {
+            span.textContent = `${this.recordingTimeElapsed}s`;
+        } else {
+            span.textContent = '';
+        }
+    }
+
+    // ============================================
+    // AUDIO COMPATIBILITY CHECK
+    // Returns true if the browser can play the given mime type
+    // ============================================
+    canPlayAudioType(mime) {
+        const a = document.createElement('audio');
+        return !!(a.canPlayType && a.canPlayType(mime));
+    }
+
+    // ============================================
+    // WAVEFORM DRAWING
+    // Draws a basic waveform of an audio file into a canvas element
+    // ============================================
+    drawWaveform(file, canvas) {
+        if (!canvas || !file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioCtx.decodeAudioData(e.target.result, (buffer) => {
+                const data = buffer.getChannelData(0);
+                const step = Math.ceil(data.length / canvas.width);
+                const amp = canvas.height / 2;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#a78bfa';
+                for (let i = 0; i < canvas.width; i++) {
+                    let min = 1.0;
+                    let max = -1.0;
+                    for (let j = 0; j < step; j++) {
+                        const datum = data[(i * step) + j];
+                        if (datum < min) min = datum;
+                        if (datum > max) max = datum;
+                    }
+                    ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+                }
+            });
+        };
+        reader.readAsArrayBuffer(file);
     }
 
     // ============================================
@@ -916,7 +1006,10 @@ class SimpleChat {
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-gray-800 truncate">${file.name}</p>
                             <p class="text-xs text-gray-500">${sizeKB} KB</p>
-                            ${category === 'Audio' ? `<audio controls class="mt-2 max-w-full"><source src="${URL.createObjectURL(file)}" type="${file.type}">Your browser does not support audio playback.</audio>` : ''}
+                            ${category === 'Audio' ? `
+                                <audio controls class="mt-2 max-w-full"><source src="${URL.createObjectURL(file)}" type="${file.type}">Your browser does not support audio playback.</audio>
+                                <canvas class="waveform-canvas mt-2 w-full h-12"></canvas>
+                            ` : ''}
                         </div>
                     </div>
                     <button type="button" 
@@ -931,21 +1024,14 @@ class SimpleChat {
         });
         
         previewContainer.innerHTML = html;
-    }
-
-    // ============================================
-    // REMOVE FILE
-    // Removes a file from the selection
-    // @param {string} category - File category
-    // @param {number} index - File index
-    // ============================================
-    removeFile(category, index) {
-        if (this.selectedFiles[category]) {
-            this.selectedFiles[category].splice(index, 1);
-            this.updateFilePreview(category);
+        if (category === 'Audio') {
+            const canvases = previewContainer.querySelectorAll('.waveform-canvas');
+            files.forEach((file, idx) => {
+                const canvas = canvases[idx];
+                if (canvas) this.drawWaveform(file, canvas);
+            });
         }
     }
-
     // ============================================
     // HIDE FILE UPLOAD MODAL
     // Closes the file upload modal
@@ -1660,16 +1746,29 @@ class SimpleChat {
                     </div>
                 `;
             } else if (msg.message_type === 'voice' && msg.file_path) {
-                // Play voice message inline
-                const ext = msg.file_path.split('.').pop();
-                fileHTML = `
-                    <div class="mt-2">
-                        <audio controls class="max-w-xs">
-                            <source src="uploads/${msg.file_path}" type="audio/${ext}">
-                            Your browser does not support audio playback.
-                        </audio>
-                    </div>
-                `;
+                // Play voice message inline with support check
+                const ext = msg.file_path.split('.').pop().toLowerCase();
+                let mime = 'audio/' + ext;
+                if (ext === 'webm') mime = 'audio/webm;codecs=opus';
+                if (ext === 'ogg') mime = 'audio/ogg;codecs=opus';
+
+                if (this.canPlayAudioType(mime)) {
+                    fileHTML = `
+                        <div class="mt-2">
+                            <audio controls class="max-w-xs">
+                                <source src="uploads/${msg.file_path}" type="${mime}">
+                                Your browser does not support audio playback.
+                            </audio>
+                        </div>
+                    `;
+                } else {
+                    fileHTML = `
+                        <div class="mt-2 text-sm text-red-500">
+                            Audio format not supported by your browser. 
+                            <a href="uploads/${msg.file_path}" download class="underline">Download</a>
+                        </div>
+                    `;
+                }
             } else if (msg.message_type === 'file' && msg.file_path) {
                 // Determine if it's actually an audio file by extension
                 const ext = msg.file_path.split('.').pop().toLowerCase();

@@ -67,7 +67,8 @@ A modern, responsive intranet messaging platform designed for secure team commun
 ### File & Media
 - ✅ File uploads with type validation
 - ✅ Image sharing and preview
-- ✅ Voice message support
+- ✅ Voice message support (record audio directly using the microphone icon; 60‑second maximum, waveform preview before sending)
+- ✅ Browser‑compatible playback (webm/ogg; file can be downloaded if not supported)
 - ✅ Document storage and retrieval
 
 ### Admin Features
@@ -475,6 +476,8 @@ tail -f logs/system.log  # if logging implemented
 ---
 
 ## 🌐 Browser Support
+
+> **Audio playback:** voice messages are recorded as WebM/Opus (or Ogg when available). Browsers that cannot natively play these formats (for example some builds of Safari) will display a download link instead.
 
 | Browser | Version | Status |
 |---------|---------|--------|

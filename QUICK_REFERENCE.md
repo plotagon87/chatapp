@@ -125,6 +125,21 @@ uploadSelectedFiles(userId)
 hideFileUploadModal()
 ```
 
+### Recording Methods
+```javascript
+// Start recording (also toggled by mic button)
+startRecording()
+
+// Stop recording (mic button toggles too)
+stopRecording()
+
+// Helpers added for recording UI
+canPlayAudioType(mime)   // check if browser can play given audio mime
+updateRecordingTimer()   // refresh timer display (called automatically)
+drawWaveform(file, canvas) // render waveform preview of an audio file
+// recordings limited to 60 seconds
+```
+
 ### Utility Methods
 ```javascript
 // HTML escape text

@@ -30,13 +30,30 @@ Complete implementation of emoji picker and file upload modal for LAN Chat appli
 - ✅ **4 file category tabs:**
   - Photos (jpg, jpeg, png, gif, bmp, webp)
   - Documents (pdf, doc, docx, txt, xlsx, xls, ppt, pptx)
-  - Audio (mp3, wav, ogg, m4a, flac)
+  - Audio (mp3, wav, ogg, m4a, flac, webm)
   - Other (zip, rar, 7z, tar, gz)
 - ✅ Drag & drop support
 - ✅ File preview with size display
 - ✅ Remove file functionality
 - ✅ File validation (type & size)
 - ✅ Multiple file selection per category
+
+### Part 4: Voice Messages (Part of input area)
+- ✅ Microphone icon added next to attachments
+- ✅ Click to start/stop recording (maximum **60 seconds**)
+- ✅ Waveform preview shown before sending; user must confirm upload
+- ✅ Recorded files saved as WebM/Ogg with browser compatibility checks
+- ✅ Request download if playback is not supported by client
+- ✅ Stores in `uploads/voice/` and displayed with audio player
+- ✅ Audio recording works in both one-to-one and group chats
+
+### Part 5: File Handling & Upload
+- ✅ Sequential file upload
+- ✅ Progress tracking (0-100%)
+- ✅ Error handling per file
+- ✅ Auto-reload messages after upload
+- ✅ Success/failure feedback
+- ✅ CSRF token protection
 
 ### Part 4: File Handling & Upload
 - ✅ Sequential file upload
@@ -80,6 +97,15 @@ Complete implementation of emoji picker and file upload modal for LAN Chat appli
 - [ ] Emojis render at proper size in message bubbles
 - [ ] Mixed emoji and text displays properly
 - [ ] Standalone emojis are larger (48px)
+
+#### Voice/Audio Recording
+- [ ] Microphone button visible next to file/emoji icons
+- [ ] Click mic to start recording (button turns red)
+- [ ] Click again to stop and send automatically
+- [ ] Recorded audio appears in chat with audio player
+- [ ] Audio plays back correctly for receiver
+- [ ] Recording works in group chat as well
+
 
 #### Mobile Responsiveness
 - [ ] Emoji picker appears in viewport on mobile
