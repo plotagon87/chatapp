@@ -63,7 +63,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <!-- Theme color (shows in Android status bar when PWA is installed) -->
     <meta name="theme-color" content="#7c3aed">
     <title>Dashboard - LAN Chat</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="assets/css/tailwind.min.css" rel="stylesheet">
     <link href="assets/css/mobile.css" rel="stylesheet">
     
     <!-- ============================================ -->
