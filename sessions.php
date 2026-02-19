@@ -96,7 +96,14 @@ $sessions = getUserSessions($_SESSION['user_id']);
                         <td class="px-4 py-2 text-sm break-words"><?php echo htmlspecialchars($s['user_agent']); ?></td>
                         <td class="px-4 py-2 text-sm"><?php echo date('Y-m-d H:i:s', strtotime($s['last_activity'])); ?></td>
                         <td class="px-4 py-2 text-sm"><?php echo date('Y-m-d H:i:s', strtotime($s['created_at'])); ?></td>
-                        <td class="px-4 py-2 text-sm"><?php echo $s['expires_at'] ? date('Y-m-d H:i:s', strtotime($s['expires_at'])) : '-'; ?></td>
+                        <td class="px-4 py-2 text-sm">
+                            <?php if ($s['expires_at']): ?>
+                                <?php echo date('Y-m-d H:i:s', strtotime($s['expires_at'])); ?>
+                                <span class="ml-1 text-xs text-green-600">(remembered)</span>
+                            <?php else: ?>
+                                <span class="text-gray-500">-</span>
+                            <?php endif; ?>
+                        </td>
                         <td class="px-4 py-2 text-sm">
                             <?php if ($s['session_id'] !== session_id()): ?>
                                 <form method="POST" class="inline-block">

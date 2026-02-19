@@ -201,6 +201,23 @@ function clearOtherUserSessions($current_only = false) {
     }
 }
 
+/**
+ * Purge sessions that have expired or not been active for a long time.
+ *
+ * @param int $max_days number of days of inactivity before removal (default 30)
+ * @return int number of rows deleted
+ */
+function purgeOldSessions($max_days = 30) {
+    global $conn;
+    $stmt = $conn->prepare(
+        "DELETE FROM user_sessions WHERE \
+            (expires_at IS NOT NULL AND expires_at < NOW()) OR \
+            last_activity < DATE_SUB(NOW(), INTERVAL ? DAY)"
+    );
+    $stmt->execute([$max_days]);
+    return $stmt->rowCount();
+}
+
 function getUserSessions($user_id) {
     global $conn;
     $stmt = $conn->prepare("SELECT session_id, ip_address, user_agent, last_activity, created_at FROM user_sessions WHERE user_id = ? ORDER BY last_activity DESC");

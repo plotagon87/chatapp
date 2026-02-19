@@ -42,6 +42,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rstmt->execute([$user_id]);
         $export['reactions'] = $rstmt->fetchAll();
 
+        // presentations created by user
+        $pstmt = $conn->prepare("SELECT * FROM presentations WHERE presenter_id = ?");
+        $pstmt->execute([$user_id]);
+        $export['presentations'] = $pstmt->fetchAll();
+
+        // presentation files for user's presentations
+        if (!empty($export['presentations'])) {
+            $ids = array_column($export['presentations'], 'presentation_id');
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $pfstmt = $conn->prepare("SELECT * FROM presentation_files WHERE presentation_id IN ($in)");
+            $pfstmt->execute($ids);
+            $export['presentation_files'] = $pfstmt->fetchAll();
+
+            // viewers records
+            $pvstmt = $conn->prepare("SELECT * FROM presentation_viewers WHERE presentation_id IN ($in)");
+            $pvstmt->execute($ids);
+            $export['presentation_viewers'] = $pvstmt->fetchAll();
+        }
+
+        // announcements created by user
+        $astmt = $conn->prepare("SELECT * FROM announcements WHERE created_by = ?");
+        $astmt->execute([$user_id]);
+        $export['announcements'] = $astmt->fetchAll();
+
         // notifications
         $nstmt = $conn->prepare("SELECT * FROM notifications WHERE user_id = ?");
         $nstmt->execute([$user_id]);
