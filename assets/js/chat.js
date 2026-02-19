@@ -28,6 +28,7 @@ console.log('=== CHAT.JS VARIABLE CHECK ===');
 console.log('currentUserId:', typeof currentUserId !== 'undefined' ? currentUserId : 'NOT FOUND');
 console.log('csrfToken:', typeof csrfToken !== 'undefined' ? 'FOUND' : 'NOT FOUND');
 console.log('baseUrl:', typeof baseUrl !== 'undefined' ? baseUrl : 'NOT FOUND');
+console.log('E2EE support:', typeof e2eeEnabled !== 'undefined' ? (e2eeEnabled ? 'YES' : 'NO') : 'unknown');
 console.log('==============================');
 
 // ============================================
@@ -1143,6 +1144,7 @@ class SimpleChat {
             formData.append('message_id', messageId);
             formData.append('reaction_type', reactionType);
             formData.append('action', 'add'); // Could be 'add' or 'remove'
+            formData.append('csrf_token', window.csrfToken || '');
             
             // Send to server
             const response = await fetch(`${window.baseUrl}chat/add_reaction.php`, {

@@ -1,5 +1,13 @@
 // Crypto helpers for end-to-end encryption
 
+// Feature detection: some browsers/insecure contexts may not expose crypto.subtle
+const e2eeEnabled = !!(window.crypto && crypto.subtle);
+// also expose globally so other scripts can inspect it
+window.e2eeEnabled = e2eeEnabled;
+if (!e2eeEnabled) {
+    console.warn('E2EE disabled: WebCrypto API unavailable (crypto.subtle missing).');
+}
+
 function arrayBufferToBase64(buf) {
     let bin = '';
     new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
@@ -13,10 +21,12 @@ function base64ToArrayBuffer(b64) {
 }
 
 async function savePrivateKey(pk) {
+    if (!e2eeEnabled) throw new Error('WebCrypto unavailable');
     const jwk = await crypto.subtle.exportKey('jwk', pk);
     localStorage.setItem('e2ee_private_jwk', JSON.stringify(jwk));
 }
 async function getPrivateKey() {
+    if (!e2eeEnabled) return null;
     const data = localStorage.getItem('e2ee_private_jwk');
     if (!data) return null;
     return crypto.subtle.importKey(
@@ -27,6 +37,7 @@ async function getPrivateKey() {
 }
 
 async function generateKeyPair() {
+    if (!e2eeEnabled) throw new Error('WebCrypto unavailable');
     const pair = await crypto.subtle.generateKey(
         { name: 'ECDH', namedCurve: 'P-256' },
         true,
@@ -37,6 +48,10 @@ async function generateKeyPair() {
 }
 
 async function generateKeyPairAndUpload() {
+    if (!e2eeEnabled) {
+        console.warn('generateKeyPairAndUpload called but E2EE disabled');
+        return null;
+    }
     const pair = await generateKeyPair();
     const pubSpki = await crypto.subtle.exportKey('spki', pair.publicKey);
     const pubB64 = arrayBufferToBase64(pubSpki);
@@ -50,12 +65,16 @@ async function generateKeyPairAndUpload() {
                 csrf_token: window.csrfToken
             })
         });
+        // also update hidden field if form exists
+        const hidden = document.getElementById('public_key');
+        if (hidden) hidden.value = pubB64;
     } catch (e) {
         console.error('Failed to upload public key', e);
     }
 }
 
 async function importPublicKey(b64) {
+    if (!e2eeEnabled) throw new Error('WebCrypto unavailable');
     const buf = base64ToArrayBuffer(b64);
     return crypto.subtle.importKey(
         'spki', buf,
@@ -65,9 +84,10 @@ async function importPublicKey(b64) {
 }
 
 async function deriveSharedKey(otherPublicKey) {
+    if (!e2eeEnabled) throw new Error('WebCrypto unavailable');
     let priv = await getPrivateKey();
     if (!priv) {
-        const pair = await generateKeyPairAndUpload();
+        await generateKeyPairAndUpload();
         priv = await getPrivateKey();
     }
     return crypto.subtle.deriveKey(
@@ -80,6 +100,7 @@ async function deriveSharedKey(otherPublicKey) {
 }
 
 async function encryptWithKey(key, plain) {
+    if (!e2eeEnabled) throw new Error('WebCrypto unavailable');
     const enc = new TextEncoder();
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ct = await crypto.subtle.encrypt(
@@ -91,6 +112,7 @@ async function encryptWithKey(key, plain) {
 }
 
 async function decryptWithKey(key, ivB64, ctB64) {
+    if (!e2eeEnabled) throw new Error('WebCrypto unavailable');
     const dec = new TextDecoder();
     const iv = base64ToArrayBuffer(ivB64);
     const ct = base64ToArrayBuffer(ctB64);

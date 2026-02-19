@@ -591,9 +591,17 @@ if ($group_id > 0) {
     <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!localStorage.getItem('e2ee_private_jwk')) {
-                await generateKeyPairAndUpload();
-                console.log('🔐 Generated E2EE key pair (group page)');
+            if (window.e2eeEnabled) {
+                if (!localStorage.getItem('e2ee_private_jwk')) {
+                    try {
+                        await generateKeyPairAndUpload();
+                        console.log('🔐 Generated E2EE key pair (group page)');
+                    } catch (err) {
+                        console.error('E2EE key generation failed:', err);
+                    }
+                }
+            } else {
+                console.warn('E2EE not available; skipping key gen on group page');
             }
         });
     </script>

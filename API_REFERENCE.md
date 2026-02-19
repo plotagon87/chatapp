@@ -628,7 +628,17 @@ formData.append('csrf_token', window.csrfToken || '');
 // - upload_file.php
 // - send_message.php
 // - add_reaction.php
+// - save_public_key.php
 ```
+
+### End-to-End Encryption (E2EE)
+The client maintains a private key and shares the public key via these simple APIs:
+
+- `GET /api/get_public_key.php?user_id=X` – returns `{ success: true, public_key: "..." }` or an error if none exists.
+- `POST /api/save_public_key.php` – authenticated JSON request with `{ public_key: "...", csrf_token: "..." }` to store the caller’s public key.
+
+Clients derive a shared AES‑GCM key using ECDH (P-256) and encrypt/decrypt messages locally.
+
 
 ### XSS Prevention
 ```javascript

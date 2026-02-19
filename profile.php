@@ -208,10 +208,13 @@ $stats = $stmt->fetch();
                             <?php echo $error; ?>
                         </div>
                     <?php endif; ?>
-                    <div class="mb-4">
+                    <div class="mb-4" id="e2eeNoticeContainer">
                         <button id="regenKeyBtn" type="button" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
                             Regenerate E2EE Key Pair
                         </button>
+                        <p id="e2eeWarning" class="text-sm text-red-600 mt-2 hidden">
+                            Your browser does not support the WebCrypto API. E2EE is disabled.
+                        </p>
                     </div>
 
                     <?php if ($success): ?>
@@ -319,6 +322,11 @@ $stats = $stmt->fetch();
     <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.e2eeEnabled) {
+                document.getElementById('e2eeWarning').classList.remove('hidden');
+                document.getElementById('regenKeyBtn').disabled = true;
+                return;
+            }
             // ensure pair exists
             if (!localStorage.getItem('e2ee_private_jwk')) {
                 await generateKeyPairAndUpload();

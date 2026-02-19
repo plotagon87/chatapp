@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"            # access via http://localhost:8080
+    volumes:
+      - .:/var/www/html       # mount source for development
+      - ./uploads:/var/www/html/uploads
+    depends_on:
+      - db
+    environment:
+      - APACHE_RUN_USER=www-data
+      - APACHE_RUN_GROUP=www-data
+      - DB_HOST=db
+      - DB_USER=chatuser
+      - DB_PASS=chatpass
+      - DB_NAME=lan_chat_db
+
+  db:
+    image: mariadb:10.5
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: lan_chat_db
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpass
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:

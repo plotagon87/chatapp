@@ -312,9 +312,17 @@ $recent_activities = $activities_stmt->fetchAll();
     <script src="../assets/js/chat.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!localStorage.getItem('e2ee_private_jwk')) {
-                await generateKeyPairAndUpload();
-                console.log('🔐 Generated admin E2EE key');
+            if (window.e2eeEnabled) {
+                if (!localStorage.getItem('e2ee_private_jwk')) {
+                    try {
+                        await generateKeyPairAndUpload();
+                        console.log('🔐 Generated admin E2EE key');
+                    } catch (err) {
+                        console.error('E2EE key generation failed:', err);
+                    }
+                }
+            } else {
+                console.warn('E2EE not available; skipping admin key generation');
             }
         });
     </script>

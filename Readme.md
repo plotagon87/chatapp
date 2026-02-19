@@ -55,7 +55,7 @@ A modern, responsive intranet messaging platform designed for secure team commun
 - ✅ Read receipts (single ✓ / double ✓✓ check)
 - ✅ Emoji picker for expressive communication
 - ✅ Message timestamps with smart formatting (Just now, 5m ago, etc.)
-- ✅ **End-to-end encryption for one-to-one chats** (keys stored client‑side)
+- ✅ **End-to-end encryption for one-to-one chats** (keys stored client‑side; requires browser support for the WebCrypto API, typically available in modern browsers and contexts served over HTTPS or localhost)
 
 ### User Management
 - ✅ User registration and authentication
@@ -110,6 +110,40 @@ A modern, responsive intranet messaging platform designed for secure team commun
 ---
 
 ## 📦 Requirements
+
+### Docker (optional)
+You can package the entire application into containers instead of running it on XAMPP/LAMP. Below are the basic files included in the repo:
+
+- `Dockerfile` – builds a PHP 8‑Apache image with required extensions and the app code.
+- `docker-compose.yml` – defines services for the web server and a MariaDB database.
+
+To build and run:
+
+```bash
+# from the project root
+docker-compose build
+docker-compose up -d
+```
+
+The app will be available at http://localhost:8080.  The database is preconfigured as:
+
+- host: db
+- name: lan_chat_db
+- user: chatuser
+- pass: chatpass
+- root password: secret
+
+After the containers start you should run the migration script to create the necessary tables:
+
+```bash
+docker-compose exec web php migrations/run.php
+```
+
+You can also connect to the `db` service with a MySQL client if needed.
+
+You can modify the compose file to suit your environment, mount volumes, or expose different ports.  The `.dockerignore` file excludes local node_modules, git metadata, etc.
+
+
 
 ### Server Requirements
 - **PHP**: 8.0 or higher

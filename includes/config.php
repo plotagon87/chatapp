@@ -22,10 +22,11 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 // Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'lan_chat_db');
+// values may be overridden by environment variables (useful for Docker)
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: '');
+define('DB_NAME', getenv('DB_NAME') ?: 'lan_chat_db');
 
 // Application Configuration
 // Construct BASE_URL dynamically from the current request
