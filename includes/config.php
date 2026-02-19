@@ -165,7 +165,10 @@ function logActivity($user_id, $action) {
  */
 function getUserData($user_id) {
     global $conn;
-    $stmt = $conn->prepare("SELECT user_id, username, email, full_name, profile_picture, role, status, custom_status, theme_preference, last_seen, created_at FROM users WHERE user_id = ?");
+    // include public_key for E2EE support (nullable)
+    $stmt = $conn->prepare(
+        "SELECT user_id, username, email, full_name, profile_picture, role, status, custom_status, theme_preference, last_seen, created_at, public_key FROM users WHERE user_id = ?"
+    );
     $stmt->execute([$user_id]);
     return $stmt->fetch();
 }

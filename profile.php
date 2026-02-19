@@ -69,9 +69,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Update profile only if no upload errors
             if (empty($error)) {
-                $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ? WHERE user_id = ?");
-                
-                if ($stmt->execute([$full_name, $email, $custom_status, $profile_picture, $_SESSION['user_id']])) {
+                // include public key if provided
+                $pubkey = isset($_POST['public_key']) ? $_POST['public_key'] : null;
+
+                // build query dynamically if pubkey present
+                if ($pubkey !== null) {
+                    $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ?, public_key = ? WHERE user_id = ?");
+                    $params = [$full_name, $email, $custom_status, $profile_picture, $pubkey, $_SESSION['user_id']];
+                } else {
+                    $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, custom_status = ?, profile_picture = ? WHERE user_id = ?");
+                    $params = [$full_name, $email, $custom_status, $profile_picture, $_SESSION['user_id']];
+                }
+
+                if ($stmt->execute($params)) {
                     $_SESSION['full_name'] = $full_name;
                     $_SESSION['profile_picture'] = $profile_picture;
                     $success = 'Profile updated successfully';
@@ -100,7 +110,6 @@ $stats = $stmt->fetch();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - LAN Chat</title>
-    <link href="assets/css/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
     <!-- Top Navigation -->
@@ -199,6 +208,11 @@ $stats = $stmt->fetch();
                             <?php echo $error; ?>
                         </div>
                     <?php endif; ?>
+                    <div class="mb-4">
+                        <button id="regenKeyBtn" type="button" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                            Regenerate E2EE Key Pair
+                        </button>
+                    </div>
 
                     <?php if ($success): ?>
                         <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
@@ -207,6 +221,7 @@ $stats = $stmt->fetch();
                     <?php endif; ?>
 
                     <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="public_key" id="public_key">
                         <div class="space-y-4">
                             <!-- Profile Picture -->
                             <div>
@@ -301,5 +316,23 @@ $stats = $stmt->fetch();
             </div>
         </div>
     </div>
+    <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // ensure pair exists
+            if (!localStorage.getItem('e2ee_private_jwk')) {
+                await generateKeyPairAndUpload();
+                alert('E2EE key pair generated');
+            }
+
+            document.getElementById('regenKeyBtn').addEventListener('click', async () => {
+                if (confirm('Regenerate key pair? Old messages will no longer be readable.')) {
+                    localStorage.removeItem('e2ee_private_jwk');
+                    await generateKeyPairAndUpload();
+                    alert('New key pair generated and uploaded');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

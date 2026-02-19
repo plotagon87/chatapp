@@ -55,6 +55,7 @@ A modern, responsive intranet messaging platform designed for secure team commun
 - ✅ Read receipts (single ✓ / double ✓✓ check)
 - ✅ Emoji picker for expressive communication
 - ✅ Message timestamps with smart formatting (Just now, 5m ago, etc.)
+- ✅ **End-to-end encryption for one-to-one chats** (keys stored client‑side)
 
 ### User Management
 - ✅ User registration and authentication
@@ -549,7 +550,7 @@ For bug reports, feature requests, or questions, please open an issue on GitHub.
 - [ ] Multi-language support
 - [ ] Desktop app (Electron)
 - [ ] Mobile app (React Native)
-- [ ] End-to-end encryption
+- [x] End-to-end encryption
 - [ ] Message scheduling
 - [ ] Advanced search filters
 

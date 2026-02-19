@@ -588,6 +588,15 @@ if ($group_id > 0) {
             }
         }, 5000);
     </script>
+    <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('e2ee_private_jwk')) {
+                await generateKeyPairAndUpload();
+                console.log('🔐 Generated E2EE key pair (group page)');
+            }
+        });
+    </script>
     <?php else: ?>
     <!-- No group selected -->
     <div class="flex-1 flex items-center justify-center">

@@ -18,7 +18,8 @@ if (!validateCsrfToken($csrf_token)) {
 
 $sender_id = $_SESSION['user_id'];
 $receiver_id = isset($_POST['receiver_id']) ? (int)$_POST['receiver_id'] : 0;
-$message_text = isset($_POST['message_text']) ? sanitize($_POST['message_text']) : '';
+// message_text may contain ciphertext; do not sanitize and break it
+$message_text = isset($_POST['message_text']) ? $_POST['message_text'] : '';
 $message_type = isset($_POST['message_type']) ? sanitize($_POST['message_type']) : 'text';
 $file_path = isset($_POST['file_path']) ? sanitize($_POST['file_path']) : null;
 

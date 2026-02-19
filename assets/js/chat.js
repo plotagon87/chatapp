@@ -1444,6 +1444,33 @@ class SimpleChat {
             const data = await response.json();
             
             if (data.success) {
+                // attempt to derive shared key once per conversation
+                let sharedKey = null;
+                try {
+                    const resp = await fetch(`${window.baseUrl}api/get_public_key.php?user_id=${userId}`);
+                    const j = await resp.json();
+                    if (j.success && j.public_key) {
+                        const other = await importPublicKey(j.public_key);
+                        sharedKey = await deriveSharedKey(other);
+                    }
+                } catch (_) {
+                    // if key fetch/derivation fails we just show plaintext
+                }
+
+                // decrypt messages if key available
+                if (sharedKey) {
+                    for (let msg of data.messages) {
+                        try {
+                            const obj = JSON.parse(msg.message_text);
+                            if (obj && obj.iv && obj.ct) {
+                                msg.decrypted_text = await decryptWithKey(sharedKey, obj.iv, obj.ct);
+                            }
+                        } catch (e) {
+                            // not encrypted or parse failed
+                        }
+                    }
+                }
+
                 // Only update if message count changed (optimization)
                 if (data.messages.length !== this.lastMessageCount) {
                     this.lastMessageCount = data.messages.length;
@@ -1548,11 +1575,12 @@ class SimpleChat {
             }
             
             // Build complete message HTML
+            const displayText = this.escapeHtml(msg.decrypted_text ?? msg.message_text);
             html += `
                 <div class="flex ${alignClass} mb-4" data-message-id="${msg.message_id}">
                     <div class="message-bubble ${bgClass} rounded-lg p-3 shadow relative group">
                         <!-- Message Text -->
-                        <p class="break-words">${this.escapeHtml(msg.message_text)}</p>
+                        <p class="break-words">${displayText}</p>
                         
                         <!-- File or Image Display -->
                         ${fileHTML}
@@ -1611,10 +1639,26 @@ class SimpleChat {
         this.sendTypingStatus(false);
         
         try {
+            // --- start E2EE logic ---
+            let payload = message;
+            try {
+                const keyResp = await fetch(`${window.baseUrl}api/get_public_key.php?user_id=${receiverId}`);
+                const keyData = await keyResp.json();
+                if (keyData.success && keyData.public_key) {
+                    const other = await importPublicKey(keyData.public_key);
+                    const sharedKey = await deriveSharedKey(other);
+                    const crypt = await encryptWithKey(sharedKey, message);
+                    payload = JSON.stringify(crypt);
+                }
+            } catch (e) {
+                console.warn('E2EE: failed to encrypt, sending plaintext', e);
+            }
+            // --- end E2EE logic ---
+
             // Prepare form data
             const formData = new FormData();
             formData.append('receiver_id', receiverId);
-            formData.append('message_text', message);
+            formData.append('message_text', payload);
             formData.append('csrf_token', window.csrfToken || '');
             
             // Send to server

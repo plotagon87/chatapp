@@ -18,7 +18,8 @@ if (!validateCsrfToken($csrf_token)) {
 
 $sender_id = $_SESSION['user_id'];
 $group_id = isset($_POST['group_id']) ? (int)$_POST['group_id'] : 0;
-$message_text = isset($_POST['message_text']) ? sanitize($_POST['message_text']) : '';
+// allow ciphertext or untrusted content; do not sanitize plain text
+$message_text = isset($_POST['message_text']) ? $_POST['message_text'] : '';
 
 // Validation
 if (empty($group_id)) {

@@ -442,7 +442,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                     <?php if (isAdmin()): ?>
                                         <a href="admin/dashboard.php" class="block px-4 py-3 text-sm text-purple-600 font-semibold hover:bg-purple-50 hover:text-purple-900 transition-colors border-t border-gray-200">Admin Panel</a>
                                     <?php endif; ?>
-                                    <a href="logout.php" class="block px-4 py-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-900 transition-colors border-t border-gray-200">Logout</a>
+                                    <a href="logout.php" onclick="localStorage.removeItem('e2ee_private_jwk');" class="block px-4 py-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-900 transition-colors border-t border-gray-200">Logout</a>
                                 </div>
                             </div>
                         </div>
@@ -776,7 +776,18 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         }
     </script>
     
+    <!-- Load E2EE helpers first -->
+    <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
     <!-- Load chat.js -->
     <script src="assets/js/chat.js?v=<?php echo time(); ?>"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // ensure a keypair exists for this user
+            if (!localStorage.getItem('e2ee_private_jwk')) {
+                await generateKeyPairAndUpload();
+                console.log('🔐 Generated E2EE key pair');
+            }
+        });
+    </script>
 </body>
 </html>

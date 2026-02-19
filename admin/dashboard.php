@@ -102,7 +102,7 @@ $recent_activities = $activities_stmt->fetchAll();
                                 <a href="../settings.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">Settings</a>
                                 <a href="../dashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-purple-50">User Dashboard</a>
                                 <hr class="my-1">
-                                <a href="../logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-50">Logout</a>
+                                <a href="../logout.php" onclick="localStorage.removeItem('e2ee_private_jwk');" class="block px-4 py-2 text-red-600 hover:bg-red-50">Logout</a>
                             </div>
                         </div>
                     </div>
@@ -308,6 +308,15 @@ $recent_activities = $activities_stmt->fetchAll();
             });
         });
     </script>
+    <script src="../assets/js/e2ee.js"></script>
     <script src="../assets/js/chat.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('e2ee_private_jwk')) {
+                await generateKeyPairAndUpload();
+                console.log('🔐 Generated admin E2EE key');
+            }
+        });
+    </script>
 </body>
 </html>
