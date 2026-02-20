@@ -40,9 +40,9 @@ $users = $users_stmt->fetchAll();
 // low‑priority only show during off‑peak hours (before 6am or after 10pm)
 $currentHour = (int) date('G');
 $lowAllowed = ($currentHour < 6 || $currentHour >= 22);
-$baseQuery = "SELECT a.*, u.full_name as author \
-                        FROM announcements a \
-                        JOIN users u ON a.created_by = u.user_id \
+$baseQuery = "SELECT a.*, u.full_name as author
+                        FROM announcements a
+                        JOIN users u ON a.created_by = u.user_id
                         WHERE a.is_active = 1";
 if (!$lowAllowed) {
     $baseQuery .= " AND a.priority != 'low'";
@@ -174,6 +174,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         #announcementsContainer {
             position: relative;
             overflow: hidden;
+            min-height: 3rem; /* ensure container visible even if JS fails */
         }
 
         .announcement-wrapper {
@@ -182,20 +183,20 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         }
 
         .announcement-item {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
+            /* relative so wrapper grows with content */
+            position: relative;
             box-sizing: border-box;
             opacity: 0;
+            visibility: hidden;
             transform: translateX(100%);
             transition: transform 0.5s ease, opacity 0.5s ease;
         }
 
         .announcement-item.active {
             opacity: 1;
+            visibility: visible;
             transform: translateX(0);
-            z-index: 2;
+            display: block;
         }
 
         .announcement-item.next {
@@ -679,7 +680,7 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                 }
                             ?>
                             <?php $prio = $announcement['priority']; ?>
-                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item priority-<?php echo $prio; ?>" 
+                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item priority-<?php echo $prio; ?> text-black" 
                                 data-priority="<?php echo $prio; ?>"
                                 data-announcement-id="<?php echo $announcement['announcement_id']; ?>"
                                 data-is-welcome="<?php echo isset($announcement['is_welcome']) && $announcement['is_welcome'] ? 'true' : 'false'; ?>">
@@ -955,10 +956,13 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             let items = Array.from(container.querySelectorAll('.announcement-item')).filter(el => el.style.display !== 'none');
             if (items.length === 0) return;
 
-            // prepare items positions
+            // prepare items positions; hide all except first
             items.forEach((el, idx) => {
+                el.style.display = 'none';
                 if (idx === 0) {
                     el.classList.add('active');
+                    el.style.display = 'block';
+                    el.style.transform = 'translateX(0)';
                 } else {
                     el.style.transform = 'translateX(100%)';
                 }
@@ -985,12 +989,14 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 const prevEl = items[prev];
                 const nextEl = items[current];
 
-                // animate out
+                // animate out (slide right)
                 prevEl.classList.remove('active');
                 prevEl.style.transform = 'translateX(100%)';
+                prevEl.style.display = 'none';
 
                 // pre-position next on left side then slide in
                 nextEl.style.transform = 'translateX(-100%)';
+                nextEl.style.display = 'block';
                 setTimeout(() => {
                     nextEl.classList.add('active');
                     nextEl.style.transform = 'translateX(0)';
