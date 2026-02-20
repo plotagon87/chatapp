@@ -63,7 +63,7 @@ $totalAnnouncements = (int) $countStmt->fetchColumn();
 $annStmt = $conn->prepare("SELECT a.*, u.full_name as author_name 
     FROM announcements a 
     JOIN users u ON a.created_by = u.user_id 
-    ORDER BY a.created_at DESC 
+    ORDER BY FIELD(a.priority,'urgent','high','medium','low'), a.created_at DESC 
     LIMIT ? OFFSET ?");
 $annStmt->bindValue(1, $perPage, PDO::PARAM_INT);
 $annStmt->bindValue(2, $offset, PDO::PARAM_INT);

@@ -40,7 +40,7 @@ A modern, responsive intranet messaging platform designed for secure team commun
 - **File Sharing**: Support for document and media uploads
 - **Typing Indicators**: See when users are typing
 - **Read Receipts**: Track message delivery status
-- **System Announcements**: Admin-controlled announcements with smart visibility rules
+- **System announcements**: Admin-controlled announcements with smart visibility rules (slide‑panel display, priority sorting, and scheduling)
 - **Mobile Responsive**: Works seamlessly on desktop, tablet, and mobile devices
 
 ---

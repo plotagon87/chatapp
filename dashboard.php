@@ -36,13 +36,20 @@ $users_stmt = $conn->prepare("SELECT user_id, username, full_name, profile_pictu
 $users_stmt->execute([$_SESSION['user_id']]);
 $users = $users_stmt->fetchAll();
 
-// Get recent announcements
-$announcements_stmt = $conn->query("SELECT a.*, u.full_name as author 
-                        FROM announcements a 
-                        JOIN users u ON a.created_by = u.user_id 
-                        WHERE a.is_active = 1 
-                        ORDER BY a.created_at DESC 
-                        LIMIT 3");
+// Get recent announcements with priority sorting and scheduling
+// low‑priority only show during off‑peak hours (before 6am or after 10pm)
+$currentHour = (int) date('G');
+$lowAllowed = ($currentHour < 6 || $currentHour >= 22);
+$baseQuery = "SELECT a.*, u.full_name as author \
+                        FROM announcements a \
+                        JOIN users u ON a.created_by = u.user_id \
+                        WHERE a.is_active = 1";
+if (!$lowAllowed) {
+    $baseQuery .= " AND a.priority != 'low'";
+}
+$baseQuery .= " ORDER BY FIELD(a.priority,'urgent','high','medium','low'), a.created_at DESC";
+
+$announcements_stmt = $conn->query($baseQuery);
 $announcements = $announcements_stmt->fetchAll();
 
 // filter out welcome announcements for non-new users so they never see them
@@ -160,6 +167,56 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             background: white;
             overflow-y: auto;
         }
+
+        /* ============================================ */
+        /* ANNOUNCEMENT PANEL STYLES */
+        /* handles sliding animation and priority styles */
+        #announcementsContainer {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .announcement-wrapper {
+            position: relative;
+            height: auto;
+        }
+
+        .announcement-item {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+
+        .announcement-item.active {
+            opacity: 1;
+            transform: translateX(0);
+            z-index: 2;
+        }
+
+        .announcement-item.next {
+            transform: translateX(-100%);
+        }
+
+        /* priority-specific visual rules */
+        .priority-low { font-size: 14px; background-color: #f9fafb; }
+        .priority-medium { font-size: 16px; background-color: #dbebff; }
+        .priority-high { font-size: 18px; background-color: #fee2e2; }
+        .priority-urgent { font-size: 20px; background-color: #fecaca; }
+
+        .urgent-cta {
+            text-decoration: none;
+        }
+
+        /* ensure announcements are legible on small screens */
+        @media (max-width: 640px) {
+            .announcement-item { padding: 0.5rem; }
+        }
+
         
         /* When active, slide in from left */
         .user-sidebar.active {
@@ -606,13 +663,14 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 
                 <!-- Announcements Banner -->
                 <?php if (count($announcements) > 0): ?>
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-4 text-white" id="announcementsContainer">
+                    <section aria-live="polite" class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-4 text-white" id="announcementsContainer">
                         <h3 class="font-bold text-base lg:text-lg mb-3 flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
                             </svg>
                             Announcements
                         </h3>
+                        <div class="announcement-wrapper relative overflow-hidden">
                         <?php foreach($announcements as $announcement): ?>
                             <?php
                                 // if somehow a welcome announcement remains and user isn't new skip
@@ -620,7 +678,9 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                     continue;
                                 }
                             ?>
-                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item relative" 
+                            <?php $prio = $announcement['priority']; ?>
+                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item priority-<?php echo $prio; ?>" 
+                                data-priority="<?php echo $prio; ?>"
                                 data-announcement-id="<?php echo $announcement['announcement_id']; ?>"
                                 data-is-welcome="<?php echo isset($announcement['is_welcome']) && $announcement['is_welcome'] ? 'true' : 'false'; ?>">
                                 <?php if (isset($announcement['is_welcome']) && $announcement['is_welcome']): ?>
@@ -633,10 +693,14 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                 <?php endif; ?>
                                 <p class="font-semibold text-sm lg:text-base"><?php echo htmlspecialchars($announcement['title']); ?></p>
                                 <p class="text-xs lg:text-sm opacity-90"><?php echo htmlspecialchars($announcement['content']); ?></p>
+                                <?php if ($prio === 'urgent'): ?>
+                                    <a href="#" class="urgent-cta inline-block mt-2 px-3 py-1 bg-white text-red-600 font-bold rounded">Take action</a>
+                                <?php endif; ?>
                                 <p class="text-xs opacity-75 mt-1">By <?php echo htmlspecialchars($announcement['author']); ?> • <?php echo timeAgo($announcement['created_at']); ?></p>
                             </div>
                         <?php endforeach; ?>
-                    </div>
+                        </div>
+                    </section>
                 <?php endif; ?>
 
                 <!-- ============================================ -->
@@ -883,6 +947,67 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     
     <!-- Load E2EE helpers first -->
     <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
+    <!-- Announcement rotation script -->
+    <script>
+        window.addEventListener('load', function() {
+            const container = document.getElementById('announcementsContainer');
+            if (!container) return;
+            let items = Array.from(container.querySelectorAll('.announcement-item')).filter(el => el.style.display !== 'none');
+            if (items.length === 0) return;
+
+            // prepare items positions
+            items.forEach((el, idx) => {
+                if (idx === 0) {
+                    el.classList.add('active');
+                } else {
+                    el.style.transform = 'translateX(100%)';
+                }
+            });
+
+            let current = 0;
+            const playTone = (level) => {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(level === 'urgent' ? 880 : 440, ctx.currentTime);
+                    osc.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.2);
+                } catch (e) {
+                    console.warn('Audio API unavailable', e);
+                }
+            };
+
+            const rotate = () => {
+                const prev = current;
+                current = (current + 1) % items.length;
+                const prevEl = items[prev];
+                const nextEl = items[current];
+
+                // animate out
+                prevEl.classList.remove('active');
+                prevEl.style.transform = 'translateX(100%)';
+
+                // pre-position next on left side then slide in
+                nextEl.style.transform = 'translateX(-100%)';
+                setTimeout(() => {
+                    nextEl.classList.add('active');
+                    nextEl.style.transform = 'translateX(0)';
+                }, 50);
+
+                // audio cue based on priority
+                const pr = nextEl.dataset.priority;
+                if (pr === 'high' || pr === 'urgent') {
+                    playTone(pr);
+                }
+            };
+
+            // start rotation interval (7 seconds per announcement)
+            setInterval(rotate, 7000);
+        });
+    </script>
+
     <!-- Load chat.js -->
     <script src="assets/js/chat.js?v=<?php echo time(); ?>"></script>
     <script>
