@@ -36,14 +36,16 @@ $users_stmt = $conn->prepare("SELECT user_id, username, full_name, profile_pictu
 $users_stmt->execute([$_SESSION['user_id']]);
 $users = $users_stmt->fetchAll();
 
-// Get recent announcements with priority sorting and scheduling
+// Get recent announcements with priority sorting and scheduling/expiration
 // low‑priority only show during off‑peak hours (before 6am or after 10pm)
+// we also ignore any announcement that has passed its expiration date
 $currentHour = (int) date('G');
 $lowAllowed = ($currentHour < 6 || $currentHour >= 22);
 $baseQuery = "SELECT a.*, u.full_name as author
                         FROM announcements a
                         JOIN users u ON a.created_by = u.user_id
-                        WHERE a.is_active = 1";
+                        WHERE a.is_active = 1
+                          AND (a.expires_at IS NULL OR a.expires_at >= NOW())";
 if (!$lowAllowed) {
     $baseQuery .= " AND a.priority != 'low'";
 }
@@ -837,10 +839,14 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 // provide a manual close mechanism
                 const closeBtn = announcement.querySelector('.announcement-close-btn');
                 const hideAnnouncement = function() {
+                    // fade out and then remove from DOM so rotation logic stops considering it
                     announcement.style.transition = 'opacity 0.5s ease-out';
                     announcement.style.opacity = '0';
                     setTimeout(function() {
-                        announcement.style.display = 'none';
+                        // remove completely instead of just hiding; the rotation observer will pick this up
+                        if (announcement.parentNode) {
+                            announcement.parentNode.removeChild(announcement);
+                        }
                     }, 500);
                 };
 
@@ -953,12 +959,28 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
         window.addEventListener('load', function() {
             const container = document.getElementById('announcementsContainer');
             if (!container) return;
-            let items = Array.from(container.querySelectorAll('.announcement-item')).filter(el => el.style.display !== 'none');
+            // helper to build filtered item list
+            let items = [];
+            let current = 0;
+            let audioPlays = 0;
+
+            const buildItems = () => {
+                // only keep elements that are still in DOM and visible
+                items = Array.from(container.querySelectorAll('.announcement-item'))
+                    .filter(el => el.offsetParent !== null && el.style.display !== 'none');
+                // make sure current index is sane
+                if (current >= items.length) current = 0;
+                return items;
+            };
+
+            // prepare initial list
+            buildItems();
             if (items.length === 0) return;
 
             // prepare items positions; hide all except first
             items.forEach((el, idx) => {
                 el.style.display = 'none';
+                el.style.opacity = '';
                 if (idx === 0) {
                     el.classList.add('active');
                     el.style.display = 'block';
@@ -968,9 +990,6 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 }
             });
 
-            let current = 0;
-            // track how many times we've played a tone so we only sound twice
-            let audioPlays = 0;
             const playTone = (level) => {
                 try {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -986,6 +1005,10 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             };
 
             const rotate = () => {
+                // refresh list in case announcements were removed/hidden
+                buildItems();
+                if (items.length <= 1) return; // nothing to rotate
+
                 const prev = current;
                 current = (current + 1) % items.length;
                 const prevEl = items[prev];
@@ -999,6 +1022,8 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                 // pre-position next on left side then slide in
                 nextEl.style.transform = 'translateX(-100%)';
                 nextEl.style.display = 'block';
+                // reset opacity in case it was faded by welcome script
+                nextEl.style.opacity = '';
                 setTimeout(() => {
                     nextEl.classList.add('active');
                     nextEl.style.transform = 'translateX(0)';
@@ -1011,6 +1036,12 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                     audioPlays++;
                 }
             };
+
+            // observe container changes so we can update items array automatically
+            const observer = new MutationObserver(() => {
+                buildItems();
+            });
+            observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
 
             // start rotation interval (7 seconds per announcement)
             setInterval(rotate, 7000);

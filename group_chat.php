@@ -552,6 +552,7 @@ if ($group_id > 0) {
     </div>
 
     <script>
+        // state variables used across group chat script
         let selectedFile = null;
         // audio recording state
         let isRecording = false;
@@ -561,6 +562,37 @@ if ($group_id > 0) {
         let maxRecordingSeconds = 60; // 1 minute cap
         let recordingTimer = null;
         let recordingTimeElapsed = 0;
+
+        // auto‑refresh control: we want to avoid reloading the page while
+        // the user is typing a message or an AJAX call is in progress.
+        let autoRefreshTimer = null;
+        let suppressReload = false; // when true, the interval will skip reloads
+
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = setInterval(() => {
+                if (suppressReload) return; // user interacting or request pending
+                if (window.location.search.includes('id=')) {
+                    location.reload();
+                }
+            }, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+            }
+        }
+
+        // helper that marks that we are about to perform an AJAX operation
+        // which should not be interrupted by a reload.
+        function beginNetworkActivity() {
+            suppressReload = true;
+        }
+        function endNetworkActivity() {
+            suppressReload = false;
+        }
 
         // Toggle members panel
         function toggleMembersPanel() {
@@ -657,11 +689,32 @@ if ($group_id > 0) {
         }
 
 
-        // Auto-scroll to bottom
+        // Auto-scroll to bottom and wire up UX helpers when page loads
         document.addEventListener('DOMContentLoaded', function() {
             const container = document.getElementById('chatMessages');
-            container.scrollTop = container.scrollHeight;
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
             renderEmojiPicker();
+
+            // start the periodic refresh timer
+            startAutoRefresh();
+
+            // if user focuses or types in input we suppress reloads until they blur
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.addEventListener('focus', () => { suppressReload = true; });
+                input.addEventListener('blur', () => {
+                    // only clear suppression when there's no text left
+                    if (!input.value.trim()) {
+                        suppressReload = false;
+                    }
+                });
+                input.addEventListener('input', () => {
+                    // keep suppression active while there is text
+                    suppressReload = input.value.trim() !== '';
+                });
+            }
 
             // bind audio button if present
             const audioBtn = document.getElementById('audioRecordBtn');
@@ -1051,7 +1104,12 @@ if ($group_id > 0) {
 
         // Toggle emoji picker
         function toggleEmojiPicker() {
-            document.getElementById('emojiPicker').classList.toggle('hidden');
+            const picker = document.getElementById('emojiPicker');
+            if (!picker) return;
+            const isHidden = picker.classList.contains('hidden');
+            picker.classList.toggle('hidden');
+            // suppress reload while emoji picker is open
+            suppressReload = !isHidden;
         }
 
         // Switch emoji category
@@ -1074,11 +1132,14 @@ if ($group_id > 0) {
         // File upload modal
         function showFileUploadModal() {
             document.getElementById('fileUploadModal').classList.remove('hidden');
+            suppressReload = true; // user is interacting with file dialog
         }
 
         function hideFileUploadModal() {
             document.getElementById('fileUploadModal').classList.add('hidden');
             clearFileSelection();
+            // resume reload only if nothing else is suppressing it
+            suppressReload = false;
         }
 
         function handleFileSelect(event) {
@@ -1117,7 +1178,7 @@ if ($group_id > 0) {
 
         function uploadFile() {
             if (!selectedFile) return;
-            
+            beginNetworkActivity();
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('group_id', groupId);
@@ -1145,6 +1206,9 @@ if ($group_id > 0) {
                 alert('Upload failed');
                 document.getElementById('uploadBtn').textContent = 'Upload to Group';
                 document.getElementById('uploadBtn').disabled = !selectedFile;
+            })
+            .finally(() => {
+                endNetworkActivity();
             });
         }
 
@@ -1165,7 +1229,8 @@ if ($group_id > 0) {
                 formData.append('reply_to', replyTo);
             }
             formData.append('csrf_token', csrfToken);
-            
+
+            beginNetworkActivity();
             fetch(window.location.href, {
                 method: 'POST',
                 body: formData
@@ -1176,15 +1241,15 @@ if ($group_id > 0) {
                     input.value = '';
                     location.reload();
                 }
+            })
+            .catch(err => {
+                console.error('Send error', err);
+            })
+            .finally(() => {
+                endNetworkActivity();
             });
         });
 
-        // Auto-refresh
-        setInterval(function() {
-            if (window.location.search.includes('id=')) {
-                location.reload();
-            }
-        }, 5000);
     </script>
     <script src="assets/js/e2ee.js?v=<?php echo time(); ?>"></script>
     <script>
