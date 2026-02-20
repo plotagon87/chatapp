@@ -969,6 +969,8 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
             });
 
             let current = 0;
+            // track how many times we've played a tone so we only sound twice
+            let audioPlays = 0;
             const playTone = (level) => {
                 try {
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1002,10 +1004,11 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                     nextEl.style.transform = 'translateX(0)';
                 }, 50);
 
-                // audio cue based on priority
+                // audio cue based on priority, but only twice overall
                 const pr = nextEl.dataset.priority;
-                if (pr === 'high' || pr === 'urgent') {
+                if ((pr === 'high' || pr === 'urgent') && audioPlays < 2) {
                     playTone(pr);
+                    audioPlays++;
                 }
             };
 
