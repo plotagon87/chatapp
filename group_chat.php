@@ -999,28 +999,6 @@ if ($group_id > 0) {
             }
         }
 
-        // reuse deleteMessage and replyToMessage from above (works same)
-                formData.append('action', action);
-                formData.append('csrf_token', csrfToken);
-                const response = await fetch(`${baseUrl}chat/add_reaction.php`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (data.success) {
-                    updateMessageReactions(messageId, data.reactions, data.user_reactions);
-                } else {
-                    console.error('Failed to add reaction:', data.message);
-                }
-            } catch (error) {
-                console.error('Reaction error:', error);
-            } finally {
-                if (msgElem) {
-                    msgElem.classList.remove('opacity-50','pointer-events-none');
-                }
-            }
-        }
-
         function updateMessageReactions(messageId, reactions, userReactions) {
             const msgElem = document.querySelector(`[data-msg-id="${messageId}"]`);
             if (!msgElem) return;

@@ -9,6 +9,12 @@ requireLogin();
 // Get current user data
 $current_user = getUserData($_SESSION['user_id']);
 
+// determine if the user is considered "new" (created within the last 7 days)
+$is_new_user = false;
+if (!empty($current_user['created_at'])) {
+    $is_new_user = (strtotime($current_user['created_at']) >= strtotime('-7 days'));
+}
+
 // Determine if dark mode should be applied
 $is_dark_mode = false;
 if (isset($current_user['theme_preference'])) {
@@ -38,6 +44,16 @@ $announcements_stmt = $conn->query("SELECT a.*, u.full_name as author
                         ORDER BY a.created_at DESC 
                         LIMIT 3");
 $announcements = $announcements_stmt->fetchAll();
+
+// filter out welcome announcements for non-new users so they never see them
+if (!$is_new_user) {
+    $announcements = array_filter($announcements, function($a) {
+        return empty($a['is_welcome']) || !$a['is_welcome'];
+    });
+    // array_filter preserves keys, reindex for easier count usage later
+    $announcements = array_values($announcements);
+}
+
 
 // Get unread message count
 $unread_stmt = $conn->prepare("SELECT COUNT(*) as unread_count 
@@ -598,9 +614,23 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                             Announcements
                         </h3>
                         <?php foreach($announcements as $announcement): ?>
-                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item" 
+                            <?php
+                                // if somehow a welcome announcement remains and user isn't new skip
+                                if (isset($announcement['is_welcome']) && $announcement['is_welcome'] && !$is_new_user) {
+                                    continue;
+                                }
+                            ?>
+                            <div class="bg-white bg-opacity-20 rounded p-3 mb-2 announcement-item relative" 
                                 data-announcement-id="<?php echo $announcement['announcement_id']; ?>"
                                 data-is-welcome="<?php echo isset($announcement['is_welcome']) && $announcement['is_welcome'] ? 'true' : 'false'; ?>">
+                                <?php if (isset($announcement['is_welcome']) && $announcement['is_welcome']): ?>
+                                    <!-- close button for welcome notice -->
+                                    <button class="announcement-close-btn absolute top-1 right-1 text-white opacity-75 hover:opacity-100 focus:outline-none">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </button>
+                                <?php endif; ?>
                                 <p class="font-semibold text-sm lg:text-base"><?php echo htmlspecialchars($announcement['title']); ?></p>
                                 <p class="text-xs lg:text-sm opacity-90"><?php echo htmlspecialchars($announcement['content']); ?></p>
                                 <p class="text-xs opacity-75 mt-1">By <?php echo htmlspecialchars($announcement['author']); ?> • <?php echo timeAgo($announcement['created_at']); ?></p>
@@ -714,37 +744,58 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
     <script>
         // ============================================
         // WELCOME ANNOUNCEMENTS - AUTO HIDE AFTER 15 SECONDS FOR NEW USERS
+        // PROVIDE MANUAL CLOSE BUTTON
         // ============================================
         window.addEventListener('load', function() {
-            // Check if user is new (account created within last 7 days)
+            // derive same information as PHP, used for logging / additional logic
             const userCreatedAt = new Date(<?php echo strtotime($current_user['created_at']) * 1000; ?>);
             const now = new Date();
             const daysOld = (now - userCreatedAt) / (1000 * 60 * 60 * 24);
             const isNewUser = daysOld <= 7;
-            
+
             console.log('User age: ' + daysOld.toFixed(1) + ' days, Is new user:', isNewUser);
-            
-            if (isNewUser) {
-                // Find welcome announcements
-                const welcomeAnnouncements = document.querySelectorAll('.announcement-item[data-is-welcome="true"]');
-                console.log('Found ' + welcomeAnnouncements.length + ' welcome announcements');
-                
-                welcomeAnnouncements.forEach(function(announcement) {
-                    // Show for 15 seconds then fade out and hide
-                    const timeoutMs = 15000; // 15 seconds
-                    
-                    setTimeout(function() {
-                        // Add fade-out animation
-                        announcement.style.transition = 'opacity 0.5s ease-out';
-                        announcement.style.opacity = '0';
-                        
-                        // Remove from DOM after fade completes
-                        setTimeout(function() {
-                            announcement.style.display = 'none';
-                        }, 500);
-                    }, timeoutMs);
+
+            if (!isNewUser) {
+                // nothing to do if user isn't new (welcome announcements were filtered out server-side),
+                // but if any slip through we hide them immediately
+                document.querySelectorAll('.announcement-item[data-is-welcome="true"]').forEach(function(a){
+                    a.style.display = 'none';
                 });
+                return;
             }
+
+            // handle welcome announcements
+            const welcomeAnnouncements = document.querySelectorAll('.announcement-item[data-is-welcome="true"]');
+            console.log('Found ' + welcomeAnnouncements.length + ' welcome announcements');
+
+            welcomeAnnouncements.forEach(function(announcement) {
+                // provide a manual close mechanism
+                const closeBtn = announcement.querySelector('.announcement-close-btn');
+                const hideAnnouncement = function() {
+                    announcement.style.transition = 'opacity 0.5s ease-out';
+                    announcement.style.opacity = '0';
+                    setTimeout(function() {
+                        announcement.style.display = 'none';
+                    }, 500);
+                };
+
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        hideAnnouncement();
+                    });
+                }
+
+                // automatic hide after 15s unless user already closed
+                const timeoutMs = 15000;
+                const timerId = setTimeout(hideAnnouncement, timeoutMs);
+
+                // if manual close occurs, cancel the timeout
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        clearTimeout(timerId);
+                    });
+                }
+            });
         });
     </script>
     
