@@ -300,9 +300,18 @@ if ($group_id > 0) {
                         $isSent = $msg['sender_id'] == $_SESSION['user_id'];
                         // deletion
                         if (!empty($msg['is_deleted'])) {
+                            // render using the same layout as a regular message so it doesn't appear oversized
+                            $bubbleClass = $isSent ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-800';
                             echo '<div class="flex ' . ($isSent ? 'justify-end' : 'justify-start') . ' mb-4" data-msg-id="' . $msg['message_id'] . '">';
-                            echo '<div class="message-bubble bg-gray-200 text-gray-500 italic rounded-lg p-3 shadow relative group">This message was deleted</div>';
-                            echo '</div>';
+                            echo '<div class="flex items-end ' . ($isSent ? 'flex-row-reverse' : '') . ' space-x-2 max-w-[70%]">';
+                            // show sender avatar for consistency
+                            echo '<img src="uploads/profiles/' . $msg['sender_picture'] . '" ' 
+                                . 'alt="' . htmlspecialchars($msg['sender_name']) . '" '
+                                . 'class="w-8 h-8 rounded-full flex-shrink-0" '
+                                . 'onerror="this.src=\'assets/images/default.png\'">';
+                            echo '<div class="relative group message-bubble ' . $bubbleClass . ' italic opacity-75 rounded-lg p-3 shadow">';
+                            echo '<p>This message has been deleted</p>';
+                            echo '</div></div></div>';
                             continue;
                         }
                         $isFile = in_array($msg['message_type'], ['file', 'image']);

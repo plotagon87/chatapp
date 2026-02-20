@@ -1961,12 +1961,23 @@ class SimpleChat {
             const senderId = parseInt(msg.sender_id);
             const isSent = senderId === parseInt(this.currentUserId);
             
-            // If message was deleted, show placeholder
+            // If message was deleted, show placeholder using same layout as regular chat bubbles
             if (msg.is_deleted) {
+                const alignClass = isSent ? 'justify-end' : 'justify-start';
+                const bubbleClass = isSent
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-800 border border-gray-200';
+
                 html += `
-                    <div class="flex ${isSent ? 'justify-end' : 'justify-start'} mb-4" data-message-id="${msg.message_id}">
-                        <div class="message-bubble bg-gray-200 text-gray-500 italic rounded-lg p-3 shadow relative group">
-                            <p>This message was deleted</p>
+                    <div class="flex ${alignClass} mb-4" data-message-id="${msg.message_id}">
+                        <div class="flex items-end ${isSent ? 'flex-row-reverse' : ''} space-x-2 max-w-[70%]">
+                            <img src="uploads/profiles/${msg.sender_picture}" \
+                                 alt="${this.escapeHtml(msg.sender_name)}" \
+                                 class="w-8 h-8 rounded-full flex-shrink-0" \
+                                 onerror="this.src='assets/images/default.png'">
+                            <div class="relative group message-bubble ${bubbleClass} italic opacity-75 rounded-lg p-3 shadow">
+                                <p>This message has been deleted</p>
+                            </div>
                         </div>
                     </div>
                 `;
