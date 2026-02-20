@@ -76,10 +76,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_send_message']) 
     header('Content-Type: application/json');
     
     $message_text = sanitize($_POST['message_text'] ?? '');
+    $reply_to = isset($_POST['reply_to']) ? (int)$_POST['reply_to'] : null;
     
     if (!empty($message_text)) {
-        $insert_stmt = $conn->prepare("INSERT INTO group_messages (group_id, sender_id, message_text, message_type) VALUES (?, ?, ?, 'text')");
-        if ($insert_stmt->execute([$group_id, $_SESSION['user_id'], $message_text])) {
+        if ($reply_to) {
+            $insert_stmt = $conn->prepare("INSERT INTO group_messages (group_id, sender_id, message_text, message_type, reply_to) VALUES (?, ?, ?, 'text', ?)");
+            $params = [$group_id, $_SESSION['user_id'], $message_text, $reply_to];
+        } else {
+            $insert_stmt = $conn->prepare("INSERT INTO group_messages (group_id, sender_id, message_text, message_type) VALUES (?, ?, ?, 'text')");
+            $params = [$group_id, $_SESSION['user_id'], $message_text];
+        }
+        if ($insert_stmt->execute($params)) {
             echo json_encode(['success' => true, 'message' => 'Message sent']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Failed to send message']);
@@ -108,14 +115,34 @@ if ($group_id > 0) {
             $error = 'You are not a member of this group';
             $group = null;
         } else {
+            // check whether the pinned_messages table exists so we can avoid
+            // crashing on a downgraded/old schema.
+            $pinExists = false;
+            try {
+                $chk = $conn->query("SHOW TABLES LIKE 'pinned_messages'");
+                $pinExists = (bool) $chk->fetch();
+            } catch (PDOException $e) {
+                // ignore - we'll just treat the table as missing
+            }
+
+            if ($pinExists) {
+                $pinSub = "(SELECT 1 FROM pinned_messages pm WHERE pm.group_message_id = gm.message_id AND pm.pinned_by = ?) AS is_pinned";
+                $params = [$_SESSION['user_id'], $group_id];
+            } else {
+                $pinSub = "0 AS is_pinned";
+                $params = [$group_id];
+            }
+
             $messages_stmt = $conn->prepare("
-                SELECT gm.*, u.full_name as sender_name, u.profile_picture as sender_picture
+                SELECT gm.*, u.full_name as sender_name, u.profile_picture as sender_picture,\n                       r.message_text AS reply_text,\n                       rs.full_name AS reply_sender_name,\n                       $pinSub
                 FROM group_messages gm
                 JOIN users u ON gm.sender_id = u.user_id
+                LEFT JOIN group_messages r ON gm.reply_to = r.message_id
+                LEFT JOIN users rs ON r.sender_id = rs.user_id
                 WHERE gm.group_id = ?
                 ORDER BY gm.created_at ASC
             ");
-            $messages_stmt->execute([$group_id]);
+            $messages_stmt->execute($params);
             $messages = $messages_stmt->fetchAll();
             
             $members_stmt = $conn->prepare("
@@ -230,6 +257,11 @@ if ($group_id > 0) {
                         </div>
                     </div>
                     <div class="flex items-center space-x-2">
+                        <button onclick="showPinnedMessages(groupId)" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold" title="View pinned messages">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 2a1 1 0 00-1 1v3a1 1 0 00.293.707L9 12l1 4 4-4 5.707-5.707A1 1 0 0019 6V3a1 1 0 00-1-1H4z"/>
+                            </svg>
+                        </button>
                         <button onclick="toggleMembersPanel()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold">
                             <svg class="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -266,19 +298,37 @@ if ($group_id > 0) {
                 <?php else: ?>
                     <?php foreach ($messages as $msg): 
                         $isSent = $msg['sender_id'] == $_SESSION['user_id'];
+                        // deletion
+                        if (!empty($msg['is_deleted'])) {
+                            echo '<div class="flex ' . ($isSent ? 'justify-end' : 'justify-start') . ' mb-4" data-msg-id="' . $msg['message_id'] . '">';
+                            echo '<div class="message-bubble bg-gray-200 text-gray-500 italic rounded-lg p-3 shadow relative group">This message was deleted</div>';
+                            echo '</div>';
+                            continue;
+                        }
                         $isFile = in_array($msg['message_type'], ['file', 'image']);
                         $isVoice = $msg['message_type'] === 'voice';
+                        $pinHtml = !empty($msg['is_pinned']) ? '<svg class="w-4 h-4 ml-1 inline text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M5 2a1 1 0 00-1 1v4H3a1 1 0 000 2h1v5a1 1 0 001 1h3v3a1 1 0 002 0v-3h3a1 1 0 001-1v-5h1a1 1 0 100-2h-1V3a1 1 0 00-1-1H5z"/></svg>' : '';
+                        $replyHtml = '';
+                        if (!empty($msg['reply_text'])) {
+                            $replyHtml = '<div class="bg-gray-100 text-gray-700 rounded p-2 mb-2 text-sm border-l-2 border-gray-300"><strong>' . htmlspecialchars($msg['reply_sender_name'] ?: 'Unknown') . ':</strong> ' . htmlspecialchars($msg['reply_text']) . '</div>';
+                        }
+                        $editedLabel = '';
+                        if (!empty($msg['edited_count'])) {
+                            $editedLabel = ' <span class="text-xs italic">(edited)</span>';
+                        }
                     ?>
-                    <div class="flex <?php echo $isSent ? 'justify-end' : 'justify-start'; ?> mb-4" data-msg-id="<?php echo $msg['message_id']; ?>">
+                    <div class="flex <?php echo $isSent ? 'justify-end' : 'justify-start'; ?> mb-4" data-msg-id="<?php echo $msg['message_id']; ?>"<?php if (!empty($msg['edited_count'])) echo ' data-edited="1"'; ?><?php if (!empty($msg['is_pinned'])) echo ' data-pinned="1"'; ?>>
                         <div class="flex items-end <?php echo $isSent ? 'flex-row-reverse' : ''; ?> space-x-2 max-w-[70%]">
                             <img src="uploads/profiles/<?php echo $msg['sender_picture']; ?>" 
                                  alt="<?php echo htmlspecialchars($msg['sender_name']); ?>"
                                  class="w-8 h-8 rounded-full flex-shrink-0"
                                  onerror="this.src='assets/images/default.png'">
-                            <div class="relative group <?php echo $isSent ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-800'; ?> rounded-lg p-3 shadow">
+                            <div class="relative group message-bubble <?php echo $isSent ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-800'; ?> rounded-lg p-3 shadow">
                                 <?php if (!$isSent): ?>
                                 <p class="text-xs font-semibold text-purple-600 mb-1"><?php echo htmlspecialchars($msg['sender_name']); ?></p>
                                 <?php endif; ?>
+                                <?php echo $pinHtml; ?>
+                                <?php echo $replyHtml; ?>
                                 
                                 <?php if ($isVoice && $msg['file_path']): ?>
                                     <?php
@@ -303,7 +353,7 @@ if ($group_id > 0) {
                                     </a>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                <p class="break-words"><?php echo htmlspecialchars($msg['message_text']); ?></p>
+                                <p class="break-words"><?php echo htmlspecialchars($msg['message_text']); ?><?php if (!empty($msg['edited_count'])): ?> <span class="text-xs italic cursor-pointer text-purple-200" onclick="showEditHistoryGroup(<?php echo $msg['message_id']; ?>)">(edited)</span><?php endif; ?></p>
                                 <?php endif; ?>
                                 
                                 <p class="text-xs <?php echo $isSent ? 'text-purple-200' : 'text-gray-500'; ?> mt-1">
@@ -476,6 +526,19 @@ if ($group_id > 0) {
             <button onclick="uploadFile()" id="uploadBtn" class="w-full mt-4 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold disabled:opacity-50" disabled>
                 Upload to Group
             </button>
+        </div>
+    </div>
+
+    <!-- Info / Message Details Modal -->
+    <div id="infoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 relative">
+            <button onclick="hideInfoModal()" class="absolute top-3 right-3 text-gray-500 hover:text-red-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <h3 id="infoModalTitle" class="text-xl font-bold text-gray-800 mb-4"></h3>
+            <pre id="infoModalContent" class="text-sm whitespace-pre-wrap"></pre>
         </div>
     </div>
 
@@ -734,6 +797,230 @@ if ($group_id > 0) {
             }
         }
 
+        // ------------------------------------------------
+        // CONTEXT MENU FOR GROUP MESSAGES
+        // ------------------------------------------------
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('chatMessages');
+            if (container) {
+                container.addEventListener('contextmenu', function(e) {
+                    const bubble = e.target.closest('.message-bubble');
+                    if (!bubble) return;
+                    e.preventDefault();
+                    const msgElem = bubble.closest('[data-msg-id]');
+                    if (!msgElem) return;
+                    const msgId = msgElem.getAttribute('data-msg-id');
+                    const isSent = bubble.classList.contains('bg-purple-600');
+                    showGroupContextMenu(msgId, e.pageX, e.pageY, isSent);
+                });
+                document.addEventListener('click', () => { const m=document.getElementById('groupContextMenu'); if(m) m.remove(); });
+            }
+        });
+
+        function showGroupContextMenu(messageId, x, y, isSent) {
+            const existing = document.getElementById('groupContextMenu');
+            if (existing) existing.remove();
+            const menu = document.createElement('div');
+            menu.id = 'groupContextMenu';
+            menu.className = 'absolute bg-white border border-gray-200 rounded shadow-lg z-50 text-sm';
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            const ul = document.createElement('ul');
+            ul.className = 'py-1';
+            const addItem = (label, handler, disabled=false) => {
+                const li = document.createElement('li');
+                li.className = `px-4 py-2 hover:bg-gray-100 cursor-pointer ${disabled?'opacity-50 pointer-events-none':''}`;
+                li.textContent = label;
+                li.addEventListener('click', e => { e.stopPropagation(); handler(); });
+                ul.appendChild(li);
+            };
+            let allowEdit = true;
+            if (isSent) {
+                // compute timestamp on element
+                const msgElem = document.querySelector(`[data-msg-id="${messageId}"]`);
+                if (msgElem) {
+                    const timeElem = msgElem.querySelector('.text-xs');
+                    if (timeElem) {
+                        const parsed = new Date(timeElem.textContent.trim());
+                        if (!isNaN(parsed) && Date.now() - parsed.getTime() > 3 * 60 * 1000) {
+                            allowEdit = false;
+                        }
+                    }
+                }
+                addItem('Edit', () => editGroupMessage(messageId), !allowEdit);
+            }
+            addItem('Reply', () => replyToMessage(messageId));
+            // show history if message has edits
+            if ((() => {
+                const el = document.querySelector(`[data-msg-id="${messageId}"]`);
+                return el && el.dataset.edited;
+            })()) {
+                addItem('View Edit History', () => showEditHistoryGroup(messageId));
+            }
+            // pin/unpin label based on state
+            {
+                const el = document.querySelector(`[data-msg-id="${messageId}"]`);
+                const pinned = el && el.dataset.pinned;
+                addItem(pinned ? 'Unpin' : 'Pin', () => togglePin(messageId, true));
+            }
+            addItem('Delete', () => deleteMessage(messageId, true));
+            addItem('Message Info', () => showGroupMessageInfo(messageId));
+            menu.appendChild(ul);
+            document.body.appendChild(menu);
+        }
+
+        async function editGroupMessage(messageId) {
+            const msgElem = document.querySelector(`[data-msg-id="${messageId}"] p.break-words`);
+            if (!msgElem) return;
+            const old = msgElem.textContent;
+            const nxt = prompt('Edit your message (3 minutes allowed):', old);
+            if (nxt === null || nxt === old) return;
+            const form = new FormData();
+            form.append('group_message_id', messageId);
+            form.append('new_text', nxt);
+            form.append('csrf_token', csrfToken);
+            const res = await fetch(`${baseUrl}chat/edit_group_message.php`, { method: 'POST', body: form });
+            const d = await res.json();
+            if (d.success) {
+                msgElem.textContent = nxt + ' (edited)';
+            } else {
+                alert(d.message || 'Failed to edit');
+            }
+        }
+
+        function showGroupMessageInfo(messageId) {
+            fetch(`${baseUrl}chat/group_message_info.php?group_message_id=${messageId}`)
+                .then(r=>r.json())
+                .then(d=>{
+                    if (d.success) {
+                        let text = 'Status:\n';
+                        d.status.forEach(s=>{
+                            text += `${s.full_name}: delivered=${s.is_delivered}?${s.delivered_at}: read=${s.is_read}?${s.read_at}\n`;
+                        });
+                        showInfoModal('Message Info', text);
+                    }
+                });
+        }
+        function showEditHistoryGroup(messageId) {
+            fetch(`${baseUrl}chat/message_edit_history.php?message_id=${messageId}&is_group=1`)
+                .then(r=>r.json())
+                .then(d=>{
+                    if (d.success) {
+                        let txt = 'Edit history:\n';
+                        d.edits.forEach(e=>{
+                            txt += `${e.edited_at} by ${e.edited_by}: ${e.old_text} → ${e.new_text}\n`;
+                        });
+                        showInfoModal('Edit History', txt);
+                    }
+                });
+        }
+
+        function showInfoModal(title, content) {
+            const modal = document.getElementById('infoModal');
+            if (!modal) return;
+            document.getElementById('infoModalTitle').textContent = title;
+            document.getElementById('infoModalContent').textContent = content;
+            modal.classList.remove('hidden');
+        }
+        function hideInfoModal() {
+            const modal = document.getElementById('infoModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        // close modal when clicking outside content
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('infoModal');
+            if (modal && e.target === modal) {
+                hideInfoModal();
+            }
+        });
+
+        function showPinnedMessages(groupId) {
+            fetch(`${baseUrl}chat/get_pinned_messages.php?is_group=1&group_id=${groupId}`)
+                .then(r=>r.json())
+                .then(d=>{
+                    if (d.success) {
+                        let txt = '';
+                        d.messages.forEach(m=>{
+                            txt += `${m.sender_name} (${m.created_at}): ${m.message_text}\n`;
+                        });
+                        showInfoModal('Pinned Messages', txt || 'No pinned messages');
+                    }
+                });
+        }
+        async function togglePin(messageId, isGroup) {
+            try {
+                const form = new FormData();
+                form.append('message_id', messageId);
+                form.append('is_group', isGroup ? '1' : '0');
+                form.append('csrf_token', csrfToken);
+                const res = await fetch(`${baseUrl}chat/toggle_pin.php`, {method:'POST', body: form});
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Pin failed');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        function replyToMessage(messageId) {
+            const msgElem = document.querySelector(`[data-msg-id="${messageId}"]`);
+            if (!msgElem) return;
+            const text = msgElem.querySelector('p.break-words')?.textContent || '';
+            const inputArea = document.getElementById('messageInputArea');
+            const existing = document.getElementById('replyBanner');
+            if (existing) existing.remove();
+            const banner = document.createElement('div');
+            banner.id = 'replyBanner';
+            banner.className = 'bg-gray-100 border-l-4 border-gray-400 p-2 mb-2 flex justify-between items-center';
+            banner.innerHTML = `<span class="text-sm truncate">Replying to: ${text}</span><button class="text-red-500 ml-2">×</button>`;
+            banner.querySelector('button').addEventListener('click', () => banner.remove());
+            inputArea.insertBefore(banner, inputArea.firstChild);
+            inputArea.dataset.replyTo = messageId;
+            document.getElementById('messageInput').focus();
+        }
+        async function deleteMessage(messageId, isGroup) {
+            if (!confirm('Are you sure you want to delete this message?')) return;
+            try {
+                const form = new FormData();
+                form.append('message_id', messageId);
+                form.append('is_group', isGroup ? '1' : '0');
+                form.append('csrf_token', csrfToken);
+                const res = await fetch(`${baseUrl}chat/delete_message.php`, {method:'POST', body: form});
+                const d = await res.json();
+                if (d.success) {
+                    location.reload();
+                } else {
+                    alert(d.message || 'Delete failed');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // reuse deleteMessage and replyToMessage from above (works same)
+                formData.append('action', action);
+                formData.append('csrf_token', csrfToken);
+                const response = await fetch(`${baseUrl}chat/add_reaction.php`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    updateMessageReactions(messageId, data.reactions, data.user_reactions);
+                } else {
+                    console.error('Failed to add reaction:', data.message);
+                }
+            } catch (error) {
+                console.error('Reaction error:', error);
+            } finally {
+                if (msgElem) {
+                    msgElem.classList.remove('opacity-50','pointer-events-none');
+                }
+            }
+        }
+
         function updateMessageReactions(messageId, reactions, userReactions) {
             const msgElem = document.querySelector(`[data-msg-id="${messageId}"]`);
             if (!msgElem) return;
@@ -885,6 +1172,11 @@ if ($group_id > 0) {
             const formData = new FormData();
             formData.append('ajax_send_message', '1');
             formData.append('message_text', message);
+            // include reply id if present
+            const replyTo = document.getElementById('messageInputArea')?.dataset.replyTo;
+            if (replyTo) {
+                formData.append('reply_to', replyTo);
+            }
             formData.append('csrf_token', csrfToken);
             
             fetch(window.location.href, {

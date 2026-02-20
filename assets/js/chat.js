@@ -94,6 +94,15 @@ class SimpleChat {
         this.initPullToRefresh(); // Enable pull-to-refresh on mobile
         this.initEmojiPicker(); // Set up emoji selection
         this.initScrollDetection(); // Track if user is manually scrolling
+
+        // allow clicking outside info modal to close it
+        const infoModal = document.getElementById('infoModal');
+        if (infoModal) {
+            infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) this.hideInfoModal();
+            });
+        }
+
         console.log('✅ Chat initialized');
     }
 
@@ -110,6 +119,7 @@ class SimpleChat {
         this.bindTypingIndicator(); // "User is typing..." feature
         this.bindFileUpload(); // File attachment feature
         this.bindAudioRecording(); // Audio recording / voice message feature
+        this.bindMessageContextMenu(); // right-click options
     }
 
     // ============================================
@@ -143,7 +153,199 @@ class SimpleChat {
     }
 
     // ============================================
-    // TYPING INDICATOR
+    // MESSAGE CONTEXT MENU (right click)
+    // ============================================
+    bindMessageContextMenu() {
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+        container.addEventListener('contextmenu', (e) => {
+            const bubble = e.target.closest('.message-bubble');
+            if (!bubble) return; // not on message
+            e.preventDefault();
+            const msgElem = bubble.closest('[data-message-id]');
+            if (!msgElem) return;
+            const msgId = msgElem.getAttribute('data-message-id');
+            const isSent = bubble.classList.contains('bg-purple-600') || bubble.classList.contains('text-white');
+            const isGroup = false; // one-to-one chat
+            let allowEdit = isSent;
+            if (allowEdit) {
+                const timeElem = msgElem.querySelector('.text-xs');
+                if (timeElem) {
+                    const parsed = new Date(timeElem.textContent.trim());
+                    if (!isNaN(parsed)) {
+                        if (Date.now() - parsed.getTime() > 3 * 60 * 1000) {
+                            allowEdit = false;
+                        }
+                    }
+                }
+            }
+            this.showMessageContextMenu(msgId, e.pageX, e.pageY, isSent, isGroup, allowEdit);
+        });
+        // hide when clicking elsewhere
+        document.addEventListener('click', () => this.hideContextMenu());
+    }
+
+    showMessageContextMenu(messageId, x, y, isSent, isGroup, allowEdit=true) {
+        // remove existing
+        this.hideContextMenu();
+        const menu = document.createElement('div');
+        menu.id = 'messageContextMenu';
+        menu.className = 'absolute bg-white border border-gray-200 rounded shadow-lg z-50 text-sm';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        // build items
+        const ul = document.createElement('ul');
+        ul.className = 'py-1';
+        const addItem = (label, handler, disabled=false) => {
+            const li = document.createElement('li');
+            li.className = `px-4 py-2 hover:bg-gray-100 cursor-pointer ${disabled?'opacity-50 pointer-events-none':''}`;
+            li.textContent = label;
+            li.addEventListener('click', (e) => { e.stopPropagation(); handler(); });
+            ul.appendChild(li);
+        };
+        if (isSent) {
+            addItem('Edit', () => this.editMessage(messageId), !allowEdit);
+        }
+        addItem('Reply', () => this.replyToMessage(messageId));
+        // show history if message was edited
+        if ((() => { const el = document.querySelector(`[data-message-id="${messageId}"]`); return el && el.dataset.edited; })()) {
+            addItem('View Edit History', () => this.showEditHistory(messageId, isGroup));
+        }
+        // pin/unpin based on state
+        {
+            const el = document.querySelector(`[data-message-id="${messageId}"]`);
+            const pinned = el && el.dataset.pinned;
+            addItem(pinned ? 'Unpin' : 'Pin', () => this.togglePin(messageId, isGroup));
+        }
+        addItem('Delete', () => this.deleteMessage(messageId, isGroup));
+        if (isGroup) {
+            addItem('Message Info', () => this.showMessageInfo(messageId));
+        }
+        menu.appendChild(ul);
+        document.body.appendChild(menu);
+    }
+
+    hideContextMenu() {
+        const existing = document.getElementById('messageContextMenu');
+        if (existing) existing.remove();
+    }
+
+    // EDIT MESSAGE - show prompt and send update
+    async editMessage(messageId) {
+        this.hideContextMenu();
+        const msgElem = document.querySelector(`[data-message-id="${messageId}"] p.break-words`);
+        if (!msgElem) return;
+        const oldText = msgElem.textContent;
+        const newText = prompt('Edit your message (3 minutes allowed):', oldText);
+        if (newText === null || newText === oldText) return;
+        try {
+            const form = new FormData();
+            form.append('message_id', messageId);
+            form.append('new_text', newText);
+            form.append('csrf_token', window.csrfToken || '');
+            const res = await fetch(`${window.baseUrl}chat/edit_message.php`, {
+                method: 'POST',
+                body: form
+            });
+            const data = await res.json();
+            if (data.success) {
+                msgElem.textContent = newText;
+                // add edited label
+                const span = document.createElement('span');
+                span.className = 'text-xs ml-1 italic';
+                span.textContent = '(edited)';
+                msgElem.appendChild(span);
+            } else {
+                alert(data.message || 'Failed to edit');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    replyToMessage(messageId) {
+        this.hideContextMenu();
+        const msgElem = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!msgElem) return;
+        const text = msgElem.querySelector('p.break-words')?.textContent || '';
+        const sender = msgElem.querySelector('p.text-xs') ? msgElem.querySelector('p.text-xs').textContent : '';
+        // show a small reply banner above input
+        const inputArea = document.getElementById('messageInputArea');
+        const existing = document.getElementById('replyBanner');
+        if (existing) existing.remove();
+        const banner = document.createElement('div');
+        banner.id = 'replyBanner';
+        banner.className = 'bg-gray-100 border-l-4 border-gray-400 p-2 mb-2 flex justify-between items-center';
+        banner.innerHTML = `<span class="text-sm truncate">Replying to: ${this.escapeHtml(text)}</span><button class="text-red-500 ml-2">×</button>`;
+        banner.querySelector('button').addEventListener('click', () => banner.remove());
+        inputArea.insertBefore(banner, inputArea.firstChild);
+        // store reply id for sendMessage
+        inputArea.dataset.replyTo = messageId;
+        document.getElementById('messageInput').focus();
+    }
+
+    async togglePin(messageId, isGroup) {
+        this.hideContextMenu();
+        try {
+            const form = new FormData();
+            form.append('message_id', messageId);
+            form.append('is_group', isGroup ? '1' : '0');
+            form.append('csrf_token', window.csrfToken || '');
+            const res = await fetch(`${window.baseUrl}chat/toggle_pin.php`, {
+                method: 'POST',
+                body: form
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.loadMessages(this.currentChatUser);
+            } else {
+                alert(data.message || 'Failed to pin/unpin');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async deleteMessage(messageId, isGroup) {
+        this.hideContextMenu();
+        if (!confirm('Are you sure you want to delete this message?')) return;
+        try {
+            const form = new FormData();
+            form.append('message_id', messageId);
+            form.append('is_group', isGroup ? '1' : '0');
+            form.append('csrf_token', window.csrfToken || '');
+            const res = await fetch(`${window.baseUrl}chat/delete_message.php`, {
+                method: 'POST',
+                body: form
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.loadMessages(this.currentChatUser);
+            } else {
+                alert(data.message || 'Delete failed');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    showMessageInfo(messageId) {
+        this.hideContextMenu();
+        const msgElem = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!msgElem) return;
+        let info = '';
+        const timeElem = msgElem.querySelector('.text-xs');
+        if (timeElem) {
+            info += 'Sent: ' + timeElem.textContent.trim() + '\n';
+        }
+        if (msgElem.querySelector('.tick-sent')) {
+            info += 'Delivered\n';
+        }
+        if (msgElem.querySelector('.tick-read')) {
+            info += 'Read\n';
+        }
+        this.showInfoModal('Message Info', info || 'No details available');
+    }
     // Shows when the other user is typing
     // ============================================
     bindTypingIndicator() {
@@ -1652,6 +1854,13 @@ class SimpleChat {
                         <p class="text-xs text-gray-500">@${username}</p>
                     </div>
                 </div>
+                <!-- Pinned Messages Button -->
+                <button onclick="window.simpleChat.showPinnedMessages(window.simpleChat.currentChatUser, false)" class="text-gray-500 hover:text-purple-600 mr-2" title="View pinned messages">
+                    <!-- simple pin icon -->
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M4 2a1 1 0 00-1 1v3a1 1 0 00.293.707L9 12l1 4 4-4 5.707-5.707A1 1 0 0019 6V3a1 1 0 00-1-1H4z"/>
+                    </svg>
+                </button>
                 <!-- Close Chat Button -->
                 <button onclick="window.simpleChat.clearChat()" class="text-gray-500 hover:text-red-600">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1671,8 +1880,8 @@ class SimpleChat {
         if (!userId) return; // Must have user ID
         
         try {
-            // Fetch messages from server
-            const response = await fetch(`${window.baseUrl}chat/get_messages.php?user_id=${userId}`);
+            // Fetch messages from server (include current user for pin lookup)
+            const response = await fetch(`${window.baseUrl}chat/get_messages.php?user_id=${userId}&pinned_by=${this.currentUserId}`);
             
             // Check response status
             if (!response.ok) {
@@ -1752,12 +1961,46 @@ class SimpleChat {
             const senderId = parseInt(msg.sender_id);
             const isSent = senderId === parseInt(this.currentUserId);
             
+            // If message was deleted, show placeholder
+            if (msg.is_deleted) {
+                html += `
+                    <div class="flex ${isSent ? 'justify-end' : 'justify-start'} mb-4" data-message-id="${msg.message_id}">
+                        <div class="message-bubble bg-gray-200 text-gray-500 italic rounded-lg p-3 shadow relative group">
+                            <p>This message was deleted</p>
+                        </div>
+                    </div>
+                `;
+                return; // skip rest of rendering for this message
+            }
+
             // Set alignment and styling based on sender
             const alignClass = isSent ? 'justify-end' : 'justify-start';
             const bgClass = isSent 
                 ? 'bg-purple-600 text-white' // Sent messages: purple
                 : 'bg-white text-gray-800 border border-gray-200'; // Received: white
             
+            // Build reply snippet if any
+            let replyHTML = '';
+            if (msg.reply_text) {
+                replyHTML = `
+                    <div class="bg-gray-100 text-gray-700 rounded p-2 mb-2 text-sm border-l-2 border-gray-300">
+                        <strong>${this.escapeHtml(msg.reply_sender_name || 'Unknown')}:</strong> ${this.escapeHtml(msg.reply_text)}
+                    </div>
+                `;
+            }
+
+            // Build edited label
+            let editedLabel = '';
+            if (msg.edited_count && msg.edited_count > 0) {
+                editedLabel = `<span class="text-xs ml-1 italic cursor-pointer text-purple-200" title="View edit history" onclick="window.simpleChat.showEditHistory(${msg.message_id}, false, event)">(edited)</span>`;
+            }
+
+            // pin indicator
+            let pinIcon = '';
+            if (msg.is_pinned) {
+                pinIcon = `<svg class="w-4 h-4 ml-1 inline text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M5 2a1 1 0 00-1 1v4H3a1 1 0 000 2h1v5a1 1 0 001 1h3v3a1 1 0 002 0v-3h3a1 1 0 001-1v-5h1a1 1 0 100-2h-1V3a1 1 0 00-1-1H5z"/></svg>`;
+            }
+
             // Build reactions HTML
             let reactionsHTML = '';
             if (msg.reactions && msg.reactions.length > 0) {
@@ -1853,10 +2096,13 @@ class SimpleChat {
             // Build complete message HTML
             const displayText = this.escapeHtml(msg.decrypted_text ?? msg.message_text);
             html += `
-                <div class="flex ${alignClass} mb-4" data-message-id="${msg.message_id}">
+                <div class="flex ${alignClass} mb-4" data-message-id="${msg.message_id}"${msg.edited_count && msg.edited_count>0 ? ' data-edited="1"' : ''}${msg.is_pinned ? ' data-pinned="1"' : ''}>
                     <div class="message-bubble ${bgClass} rounded-lg p-3 shadow relative group">
+                        ${pinIcon}
+                        <!-- Reply Snippet -->
+                        ${replyHTML}
                         <!-- Message Text -->
-                        <p class="break-words">${displayText}</p>
+                        <p class="break-words">${displayText}${editedLabel}</p>
                         
                         <!-- File or Image Display -->
                         ${fileHTML}
@@ -1893,6 +2139,71 @@ class SimpleChat {
         // Auto-scroll to bottom if user isn't manually scrolling
         if (!this.isUserScrolling) {
             this.scrollToBottom();
+        }
+    }
+
+    // ============================================
+    // SHOW EDIT HISTORY
+    // ============================================
+    async showEditHistory(messageId, isGroup, event) {
+        if (event) event.stopPropagation();
+        try {
+            const resp = await fetch(`${window.baseUrl}chat/message_edit_history.php?message_id=${messageId}&is_group=${isGroup?1:0}`);
+            const data = await resp.json();
+            if (data.success) {
+                let txt = 'Edit history:\n';
+                data.edits.forEach(e => {
+                    txt += `${e.edited_at} by ${e.edited_by}: ${e.old_text} → ${e.new_text}\n`;
+                });
+                this.showInfoModal('Edit History', txt);
+            }
+        } catch (err) {
+            console.error('History error', err);
+        }
+    }
+
+    // ============================================
+
+    // ============================================
+    // GENERIC INFO MODAL
+    // ============================================
+    showInfoModal(title, content) {
+        // ensure modal markup is present
+        const modal = document.getElementById('infoModal');
+        if (!modal) return;
+        const titleElem = document.getElementById('infoModalTitle');
+        const contentElem = document.getElementById('infoModalContent');
+        if (titleElem) titleElem.textContent = title;
+        if (contentElem) contentElem.textContent = content;
+        modal.classList.remove('hidden');
+    }
+    hideInfoModal() {
+        const modal = document.getElementById('infoModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // ============================================
+    // PINNED MESSAGES
+    // Fetch and display a list of pinned messages for current chat
+    // @param {number} chatWith - other user ID or group ID
+    // @param {boolean} isGroup - true if group chat
+    // ============================================
+    async showPinnedMessages(chatWith, isGroup=false) {
+        try {
+            const url = `${window.baseUrl}chat/get_pinned_messages.php?is_group=${isGroup?1:0}` +
+                        (isGroup ? `&group_id=${chatWith}` : `&chat_with=${chatWith}`);
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success) {
+                let txt = '';
+                data.messages.forEach(m => {
+                    const sender = m.sender_name || (m.sender_id == this.currentUserId ? 'You' : 'Other');
+                    txt += `${sender} (${m.created_at}): ${m.message_text}\n`;
+                });
+                this.showInfoModal('Pinned Messages', txt || 'No pinned messages');
+            }
+        } catch (err) {
+            console.error('Pinned messages error', err);
         }
     }
 
@@ -1937,6 +2248,11 @@ class SimpleChat {
             const formData = new FormData();
             formData.append('receiver_id', receiverId);
             formData.append('message_text', payload);
+            // include optional reply_to if set
+            const replyBanner = document.getElementById('replyBanner');
+            if (replyBanner && messageInput.closest('#messageInputArea').dataset.replyTo) {
+                formData.append('reply_to', messageInput.closest('#messageInputArea').dataset.replyTo);
+            }
             formData.append('csrf_token', window.csrfToken || '');
             
             // Send to server
@@ -1956,6 +2272,13 @@ class SimpleChat {
             if (data.success) {
                 // Clear input field
                 messageInput.value = '';
+                // clear reply metadata
+                const inputArea = document.getElementById('messageInputArea');
+                if (inputArea) {
+                    delete inputArea.dataset.replyTo;
+                    const replyBanner = document.getElementById('replyBanner');
+                    if (replyBanner) replyBanner.remove();
+                }
                 
                 // Reload messages to show new message
                 this.loadMessages(receiverId);

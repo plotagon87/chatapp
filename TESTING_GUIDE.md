@@ -118,6 +118,30 @@ Expected: File appears as downloadable link in chat
 ```
 1. Click file button
 2. Photos tab - select 2 images
+
+
+### Scenario 4: Pin/unpin messages and view list
+```
+1. Right-click one of your messages
+2. Choose "Pin" from context menu
+3. Verify pin icon appears next to message
+4. Click pin icon in chat header
+5. Confirm message appears in pinned list modal
+6. In modal, note message text and timestamp
+7. Close modal and right-click same message again
+8. Choose "Unpin" and confirm icon disappears
+9. Open pinned list again - it should be empty
+```
+
+### Scenario 5: Edit history via context menu
+```
+1. Send a message
+2. Within 3 minutes, right-click it and choose "Edit"
+3. Change text and save
+4. Right-click again and select "View Edit History"
+5. Modal should show original and updated text with timestamp
+```
+
 3. Documents tab - select 1 PDF
 4. Send Files
 Expected: Progress bar shows 3/3, all files upload, chat refreshes

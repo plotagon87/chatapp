@@ -656,7 +656,24 @@ Success alert shown
 
 ---
 
-## 🔐 Security Methods
+## � Pinned Messages API
+
+- `GET /chat/get_pinned_messages.php` - retrieve messages you've pinned.
+  - query parameters:
+    - `chat_with` (user ID) when `is_group` is omitted or `0`.
+    - `is_group=1&group_id=Y` for a group conversation.
+  - response example:
+    ```json
+    {
+      "success": true,
+      "messages": [
+        {"message_id":1,"sender_id":2,"sender_name":"Alice","message_text":"Hello","created_at":"2025-01-01 12:00:00"},
+        ...
+      ]
+    }
+    ```
+
+## �🔐 Security Methods
 
 ### CSRF Protection
 ```javascript

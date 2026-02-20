@@ -12,20 +12,47 @@ if (empty($other_user_id)) {
     exit();
 }
 
-// Get messages between current user and the other user
+// Get messages between current user and the other user, including reply text and pin info
+// guard against missing table (migration not executed yet)
+$pinExists = false;
+try {
+    $chk = $conn->query("SHOW TABLES LIKE 'pinned_messages'");
+    $pinExists = (bool) $chk->fetch();
+} catch (PDOException $e) {
+    // ignore
+}
+
+if ($pinExists) {
+    $pinSub = "(SELECT 1 FROM pinned_messages pm WHERE pm.message_id = m.message_id AND pm.pinned_by = ?) AS is_pinned";
+    $params = [$current_user_id, $current_user_id, $other_user_id, $other_user_id, $current_user_id];
+} else {
+    $pinSub = "0 AS is_pinned";
+    // When the pin column is omitted we don't bind the first parameter
+    $params = [$current_user_id, $other_user_id, $other_user_id, $current_user_id];
+}
+
 $query = "SELECT m.*, 
           sender.full_name as sender_name, 
           sender.profile_picture as sender_picture,
-          receiver.full_name as receiver_name
+          receiver.full_name as receiver_name,
+          -- if this message is a reply, fetch a snippet and sender
+          r.message_text AS reply_text,
+          r.sender_id AS reply_sender_id,
+          rs.full_name AS reply_sender_name,
+          -- determine if current user has pinned this message
+          $pinSub
           FROM messages m
           JOIN users sender ON m.sender_id = sender.user_id
           JOIN users receiver ON m.receiver_id = receiver.user_id
+          LEFT JOIN messages r ON m.reply_to = r.message_id
+          LEFT JOIN users rs ON r.sender_id = rs.user_id
           WHERE (m.sender_id = ? AND m.receiver_id = ?) 
              OR (m.sender_id = ? AND m.receiver_id = ?)
           ORDER BY m.created_at ASC";
 
 $stmt = $conn->prepare($query);
-$stmt->execute([$current_user_id, $other_user_id, $other_user_id, $current_user_id]);
+// bind parameters; it already contains pinned param if needed
+$stmt->execute($params);
 $messages = $stmt->fetchAll();
 
 // Get reactions for all messages

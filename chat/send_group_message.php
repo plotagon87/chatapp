@@ -20,6 +20,7 @@ $sender_id = $_SESSION['user_id'];
 $group_id = isset($_POST['group_id']) ? (int)$_POST['group_id'] : 0;
 // allow ciphertext or untrusted content; do not sanitize plain text
 $message_text = isset($_POST['message_text']) ? $_POST['message_text'] : '';
+$reply_to = isset($_POST['reply_to']) ? (int)$_POST['reply_to'] : null;
 
 // Validation
 if (empty($group_id)) {
@@ -46,12 +47,29 @@ if ($member_stmt->rowCount() === 0 && (!$creator || $creator['created_by'] != $s
     exit();
 }
 
-// Insert message
-$stmt = $conn->prepare("INSERT INTO group_messages (group_id, sender_id, message_text, message_type) VALUES (?, ?, ?, 'text')");
+// Insert message (include reply_to when provided)
+if ($reply_to) {
+    $stmt = $conn->prepare("INSERT INTO group_messages (group_id, sender_id, message_text, message_type, reply_to) VALUES (?, ?, ?, 'text', ?)");
+    $params = [$group_id, $sender_id, $message_text, $reply_to];
+} else {
+    $stmt = $conn->prepare("INSERT INTO group_messages (group_id, sender_id, message_text, message_type) VALUES (?, ?, ?, 'text')");
+    $params = [$group_id, $sender_id, $message_text];
+}
 
-if ($stmt->execute([$group_id, $sender_id, $message_text])) {
+if ($stmt->execute($params)) {
     $message_id = $conn->lastInsertId();
     
+    // initialize delivery/read status for other members
+    $members_stmt = $conn->prepare("SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?");
+    $members_stmt->execute([$group_id, $sender_id]);
+    $members = $members_stmt->fetchAll(PDO::FETCH_COLUMN);
+    if (!empty($members)) {
+        $ins = $conn->prepare("INSERT INTO group_message_status (group_message_id, user_id) VALUES (?, ?)");
+        foreach ($members as $uid) {
+            $ins->execute([$message_id, $uid]);
+        }
+    }
+
     // Log activity
     logActivity($sender_id, "Sent message to group ID: $group_id");
     

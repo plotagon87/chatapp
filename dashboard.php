@@ -688,6 +688,19 @@ $unread_count = $unread_stmt->fetch()['unread_count'];
                                     </button>
                                 </form>
                             </div>
+
+                            <!-- Info / Message Details Modal -->
+                            <div id="infoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                                <div class="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 relative">
+                                    <button onclick="window.simpleChat.hideInfoModal()" class="absolute top-3 right-3 text-gray-500 hover:text-red-600">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                    <h3 id="infoModalTitle" class="text-xl font-bold text-gray-800 mb-4"></h3>
+                                    <pre id="infoModalContent" class="text-sm whitespace-pre-wrap"></pre>
+                                </div>
+                            </div>
                 </div>
             </div>
         </div>

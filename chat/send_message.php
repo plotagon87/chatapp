@@ -22,6 +22,7 @@ $receiver_id = isset($_POST['receiver_id']) ? (int)$_POST['receiver_id'] : 0;
 $message_text = isset($_POST['message_text']) ? $_POST['message_text'] : '';
 $message_type = isset($_POST['message_type']) ? sanitize($_POST['message_type']) : 'text';
 $file_path = isset($_POST['file_path']) ? sanitize($_POST['file_path']) : null;
+$reply_to = isset($_POST['reply_to']) ? (int)$_POST['reply_to'] : null;
 
 // Validation
 if (empty($receiver_id)) {
@@ -43,10 +44,16 @@ if ($check_user->rowCount() === 0) {
     exit();
 }
 
-// Insert message
-$stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message_text, message_type, file_path) VALUES (?, ?, ?, ?, ?)");
+// Insert message (include reply_to if provided)
+if ($reply_to) {
+    $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message_text, message_type, file_path, reply_to) VALUES (?, ?, ?, ?, ?, ?)");
+    $params = [$sender_id, $receiver_id, $message_text, $message_type, $file_path, $reply_to];
+} else {
+    $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message_text, message_type, file_path) VALUES (?, ?, ?, ?, ?)");
+    $params = [$sender_id, $receiver_id, $message_text, $message_type, $file_path];
+}
 
-if ($stmt->execute([$sender_id, $receiver_id, $message_text, $message_type, $file_path])) {
+if ($stmt->execute($params)) {
     $message_id = $conn->lastInsertId();
     
     // Create notification for receiver
